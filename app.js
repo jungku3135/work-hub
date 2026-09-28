@@ -490,7 +490,6 @@ document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab-btn[data-tab]").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
-    stopChatPoll();
     state.tab = btn.dataset.tab;
     state.detailId = null;
     render();
@@ -1249,7 +1248,6 @@ function initNotifFab() {
       }
       localStorage.setItem(NOTIF_TASKS_ENABLED_KEY, "1");
       showToast("업무 리마인더 알림이 켜졌습니다");
-      updateChatNotifBtnUI(); // 이 클릭으로 권한이 처음 허용된 거면 채팅 알림 버튼도 같이 갱신
     } else {
       const nowEnabled = !isTaskNotifEnabled();
       localStorage.setItem(NOTIF_TASKS_ENABLED_KEY, nowEnabled ? "1" : "0");

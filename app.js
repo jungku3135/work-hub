@@ -3,7 +3,7 @@ const NC = window.NotionClient;
 const CFG = window.CONFIG;
 
 const state = {
-  tab: "tasks",
+  tab: "dashboard",
   settings: NC.getSettings(),
   tasks: [],
   projects: [],
@@ -180,6 +180,124 @@ function tag(text, kind) {
   if (!text) return `<span class="muted">-</span>`;
   const cls = kind ? `tag ${kind}-${text.replace(/\s/g, ".")}` : "tag";
   return `<span class="${cls}">${escapeHtml(text)}</span>`;
+}
+
+function todayISO() { return new Date().toISOString().slice(0, 10); }
+function addDaysISO(iso, days) { const d = new Date(`${iso}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + days); return d.toISOString().slice(0, 10); }
+function formatTaskDate(iso) { return iso ? iso.slice(5).replace("-", "/") : "-"; }
+
+// ---------- 공용 목록 모달 (대시보드 통계 카드 클릭 시) ----------
+function openTaskListModal(title, tasks) {
+  openModal(`
+    <h3>${escapeHtml(title)}</h3>
+    <div class="card-list">${tasks.length ? tasks.map((t) => `
+      <div class="task-card modal-list-item" data-id="${t.id}">
+        <div class="title">${escapeHtml(t.name)}</div>
+        <div class="meta">${tag(t.status, "status")} ${tag(t.priority, "priority")} <span>${allAssigneeNamesText(t)}</span> ${t.dueDate ? `<span>~${formatTaskDate(t.dueDate)}</span>` : ""}</div>
+      </div>`).join("") : `<span class="muted">해당하는 태스크가 없습니다</span>`}</div>
+    <div class="modal-actions"><span></span><div class="modal-actions-right"><button type="button" class="btn" id="list-close">닫기</button></div></div>`,
+    (modal) => {
+      modal.querySelector("#list-close").onclick = closeModal;
+      modal.querySelectorAll(".modal-list-item").forEach((card) => {
+        card.onclick = () => openTaskModal(state.tasks.find((t) => t.id === card.dataset.id));
+      });
+    });
+}
+function openProjectListModal(title, projects) {
+  openModal(`
+    <h3>${escapeHtml(title)}</h3>
+    <div class="card-list">${projects.length ? projects.map((p) => `
+      <div class="task-card modal-list-item" data-id="${p.id}">
+        <div class="title">${escapeHtml(p.name)}</div>
+        <div class="meta">${tag(p.status, "status")} ${tag(p.priority, "priority")} <span>${p.startDate || "-"} ~ ${p.dueDate || "-"}</span></div>
+      </div>`).join("") : `<span class="muted">해당하는 프로젝트가 없습니다</span>`}</div>
+    <div class="modal-actions"><span></span><div class="modal-actions-right"><button type="button" class="btn" id="list-close">닫기</button></div></div>`,
+    (modal) => {
+      modal.querySelector("#list-close").onclick = closeModal;
+      modal.querySelectorAll(".modal-list-item").forEach((card) => {
+        card.onclick = () => { closeModal(); openProjectModal(projects.find((p) => p.id === card.dataset.id)); };
+      });
+    });
+}
+function openMeetingListModal(title, meetings) {
+  openModal(`
+    <h3>${escapeHtml(title)}</h3>
+    <div class="card-list">${meetings.length ? meetings.map((m) => `
+      <div class="task-card modal-list-item" data-id="${m.id}">
+        <div class="title">${escapeHtml(m.title)}</div>
+        <div class="meta">${tag(m.meetingType, "cat")} <span>${m.date || "-"}</span></div>
+      </div>`).join("") : `<span class="muted">회의록이 없습니다</span>`}</div>
+    <div class="modal-actions"><span></span><div class="modal-actions-right"><button type="button" class="btn" id="list-close">닫기</button></div></div>`,
+    (modal) => {
+      modal.querySelector("#list-close").onclick = closeModal;
+      modal.querySelectorAll(".modal-list-item").forEach((card) => {
+        card.onclick = () => { closeModal(); openMeetingModal(meetings.find((m) => m.id === card.dataset.id)); };
+      });
+    });
+}
+
+// ---------- dashboard ----------
+let dashboardClockTimer = null;
+function updateDashboardClock() {
+  const el = document.getElementById("dash-clock");
+  if (!el) { clearInterval(dashboardClockTimer); dashboardClockTimer = null; return; }
+  const now = new Date();
+  const pad = (n) => String(n).padStart(2, "0");
+  el.textContent = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+}
+function statCardHtml(id, num, label) {
+  return `<div class="stat-card" id="${id}"><div class="stat-num">${num}</div><div class="stat-label">${label}</div></div>`;
+}
+function renderDashboard() {
+  const today = todayISO();
+  const weekEnd = addDaysISO(today, 7);
+  const todayCount = state.tasks.filter((t) => t.dueDate === today && t.status !== "완료").length;
+  const weekCount = state.tasks.filter((t) => t.dueDate && t.dueDate >= today && t.dueDate <= weekEnd && t.status !== "완료").length;
+  const activeProjectCount = state.projects.filter((p) => p.status === "진행중").length;
+  const todos = state.tasks.filter((t) => t.status === "할 일").sort((a, b) => (a.dueDate || "9999").localeCompare(b.dueDate || "9999")).slice(0, 10);
+  const recentMeetings = [...state.meetings].slice(0, 5);
+
+  app.innerHTML = `
+    <div class="dash-hero">
+      <div class="dash-clock" id="dash-clock">--:--:--</div>
+      <div class="stat-grid">
+        ${statCardHtml("stat-today", todayCount, "오늘 마감 태스크")}
+        ${statCardHtml("stat-week", weekCount, "이번 주 마감 태스크")}
+        ${statCardHtml("stat-projects", activeProjectCount, "진행중 프로젝트")}
+        ${statCardHtml("stat-meetings", state.meetings.length, "전체 회의록")}
+      </div>
+    </div>
+    <div class="dashboard-main">
+      <div class="dashboard-todo-col">
+        <div class="section-header"><h2>할 일 목록</h2><span class="tag">${state.tasks.filter((t) => t.status === "할 일").length}</span></div>
+        <div class="card-list">${todos.length ? todos.map((t) => `
+          <div class="task-card modal-list-item" data-id="${t.id}">
+            <div class="title">${escapeHtml(t.name)}</div>
+            <div class="meta">${tag(t.priority, "priority")} ${t.dueDate ? `<span>~${formatTaskDate(t.dueDate)}</span>` : ""}</div>
+          </div>`).join("") : `<span class="muted">할 일이 없습니다</span>`}</div>
+      </div>
+      <div class="dashboard-meetings-col">
+        <div class="section-header"><h2>최근 회의록</h2></div>
+        <div class="card-list">${recentMeetings.length ? recentMeetings.map((m) => `
+          <div class="task-card modal-list-item" data-mid="${m.id}">
+            <div class="title">${escapeHtml(m.title)}</div>
+            <div class="meta">${tag(m.meetingType, "cat")} <span>${m.date || "-"}</span></div>
+          </div>`).join("") : `<span class="muted">아직 회의록이 없습니다</span>`}</div>
+      </div>
+    </div>`;
+
+  document.getElementById("stat-today").onclick = () => openTaskListModal("오늘 마감 태스크", state.tasks.filter((t) => t.dueDate === today && t.status !== "완료"));
+  document.getElementById("stat-week").onclick = () => openTaskListModal("이번 주 마감 태스크", state.tasks.filter((t) => t.dueDate && t.dueDate >= today && t.dueDate <= weekEnd && t.status !== "완료"));
+  document.getElementById("stat-projects").onclick = () => openProjectListModal("진행중 프로젝트", state.projects.filter((p) => p.status === "진행중"));
+  document.getElementById("stat-meetings").onclick = () => openMeetingListModal("전체 회의록", state.meetings);
+  app.querySelectorAll(".dashboard-todo-col .modal-list-item").forEach((card) => {
+    card.onclick = () => openTaskModal(state.tasks.find((t) => t.id === card.dataset.id));
+  });
+  app.querySelectorAll(".dashboard-meetings-col .modal-list-item").forEach((card) => {
+    card.onclick = () => openMeetingModal(state.meetings.find((m) => m.id === card.dataset.mid));
+  });
+
+  if (!dashboardClockTimer) { updateDashboardClock(); dashboardClockTimer = setInterval(updateDashboardClock, 1000); }
 }
 
 // ---------- tasks view ----------
@@ -677,6 +795,7 @@ async function initWeather() {
 function render() {
   document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === state.tab));
   if (state.tab === "settings") return renderSettings();
+  if (state.tab === "dashboard") return renderDashboard();
   if (state.tab === "tasks") return renderTasks();
   if (state.tab === "projects") return renderProjects();
   if (state.tab === "meetings") return renderMeetings();

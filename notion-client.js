@@ -1,15 +1,15 @@
 /* ══════════════════════════════════════════════════════════════
-   Notion API 클라이언트 (브라우저에서 직접 호출)
-   개인용 정적 페이지라 백엔드 없이 fetch()로 api.notion.com을 바로 두드린다.
-   Notion API가 Access-Control-Allow-Origin: * 를 내려주기 때문에 가능함
-   (기존 work-hub의 Express 백엔드는 이 CORS 오픈을 몰랐거나, 팀 공용 토큰을
-   숨겨야 해서 프록시를 뒀던 것 — 이번엔 개인용이라 토큰을 로컬에 직접 둔다).
+   Notion API 클라이언트 (Cloudflare Worker 프록시 경유)
+   팀 공용 Notion 워크스페이스에 연결하는 거라, 진짜 Notion 토큰은 절대
+   브라우저에 두면 안 된다 — Cloudflare Worker(work-hub-proxy)가 토큰을
+   Secret으로 들고 있고, 프론트엔드는 앱 비밀번호(X-App-Secret)만 보낸다.
+   Notion의 최신 "data sources" API(2025-09-03)를 쓴다 — 팀 work-hub
+   백엔드(src/notion/client.ts)와 동일한 버전/엔드포인트.
 ══════════════════════════════════════════════════════════════ */
 
-const NOTION_VERSION = "2022-06-28";
-const NOTION_API_BASE = "https://api.notion.com/v1";
+const NOTION_API_BASE = "https://work-hub-notion-proxy.work-hub-proxy.workers.dev/v1";
 
-const SETTINGS_KEY = "wh-settings"; // { token, tasksDbId, projectsDbId, meetingsDbId }
+const SETTINGS_KEY = "wh-settings"; // { appSecret, tasksDbId, projectsDbId, meetingsDbId }
 
 function getSettings() {
   try {
@@ -25,17 +25,16 @@ function saveSettings(settings) {
 
 function hasValidSettings() {
   const s = getSettings();
-  return !!(s.token && s.tasksDbId);
+  return !!(s.appSecret && s.tasksDbId);
 }
 
 async function notionFetch(path, options = {}) {
-  const { token } = getSettings();
-  if (!token) throw new Error("NOTION_NOT_CONFIGURED");
+  const { appSecret } = getSettings();
+  if (!appSecret) throw new Error("NOTION_NOT_CONFIGURED");
   const res = await fetch(`${NOTION_API_BASE}${path}`, {
     ...options,
     headers: {
-      Authorization: `Bearer ${token}`,
-      "Notion-Version": NOTION_VERSION,
+      "X-App-Secret": appSecret,
       "Content-Type": "application/json",
       ...(options.headers || {}),
     },
@@ -50,12 +49,12 @@ async function notionFetch(path, options = {}) {
   return res.json();
 }
 
-// 데이터베이스/데이터소스 전체 페이지를 페이지네이션 처리해서 다 모아 온다
-async function queryDatabaseAll(databaseId, body = {}) {
+// 데이터소스 전체 페이지를 페이지네이션 처리해서 다 모아 온다
+async function queryDatabaseAll(dataSourceId, body = {}) {
   const results = [];
   let cursor = undefined;
   do {
-    const page = await notionFetch(`/databases/${databaseId}/query`, {
+    const page = await notionFetch(`/data_sources/${dataSourceId}/query`, {
       method: "POST",
       body: JSON.stringify({ ...body, start_cursor: cursor }),
     });
@@ -65,10 +64,10 @@ async function queryDatabaseAll(databaseId, body = {}) {
   return results;
 }
 
-async function createPage(databaseId, properties) {
+async function createPage(dataSourceId, properties) {
   return notionFetch("/pages", {
     method: "POST",
-    body: JSON.stringify({ parent: { database_id: databaseId }, properties }),
+    body: JSON.stringify({ parent: { type: "data_source_id", data_source_id: dataSourceId }, properties }),
   });
 }
 

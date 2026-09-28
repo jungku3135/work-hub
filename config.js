@@ -1,5 +1,13 @@
 /* 태스크/프로젝트/회의록 속성 이름 매핑 — 팀 work-hub와 같은 스키마를 기본값으로 쓴다.
-   개인 Notion 데이터베이스의 속성 이름이 다르면 이 파일만 고치면 된다. */
+   Notion 데이터베이스의 속성 이름이 다르면 이 파일만 고치면 된다. */
+
+// 기존 시스템팀 work-hub가 쓰던 것과 동일한 데이터소스 ID (설정 화면 기본값으로 쓰임)
+const DEFAULT_DATA_SOURCES = {
+  tasksDbId: "8981083f-4ed7-4122-90c0-f0f3bfe34d1d",
+  projectsDbId: "4cbfb1fc-ba86-44b1-9fd1-2931f1d7afc2",
+  meetingsDbId: "c63162f4-1bf0-4d3c-859c-48ec3c708d3b",
+};
+
 const TASK_PROPS = {
   name: "이름",
   status: "상태",
@@ -52,6 +60,7 @@ const KMA_NX = 57;
 const KMA_NY = 121;
 
 window.CONFIG = {
+  DEFAULT_DATA_SOURCES,
   TASK_PROPS, TASK_STATUS_OPTIONS, PRIORITY_OPTIONS, RECURRENCE_OPTIONS, WORK_TYPE_OPTIONS,
   PROJECT_PROPS, PROJECT_STATUS_OPTIONS,
   MEETING_PROPS, MEETING_TYPE_OPTIONS,

@@ -54,15 +54,16 @@ function closeModal() {
 // ---------- settings ----------
 function renderSettings() {
   const s = state.settings;
+  const D = CFG.DEFAULT_DATA_SOURCES;
   app.innerHTML = `
     <div class="settings-box">
-      <h2>⚙ Notion 연결 설정</h2>
-      <p>개인 Notion Integration 토큰과 데이터베이스 ID를 입력하세요. 이 정보는 이 브라우저에만 저장되고 어디로도 전송되지 않습니다 (Notion API 서버 제외).</p>
-      <div class="field"><label>Integration 토큰 (secret_... 또는 ntn_...)</label><input type="password" id="s-token" value="${escapeHtml(s.token || "")}" /></div>
-      <div class="field"><label>태스크 데이터베이스 ID</label><input type="text" id="s-tasks" value="${escapeHtml(s.tasksDbId || "")}" /></div>
-      <div class="field"><label>프로젝트 데이터베이스 ID (선택)</label><input type="text" id="s-projects" value="${escapeHtml(s.projectsDbId || "")}" /></div>
-      <div class="field"><label>회의록 데이터베이스 ID (선택)</label><input type="text" id="s-meetings" value="${escapeHtml(s.meetingsDbId || "")}" /></div>
-      <div class="field"><label>팀 이름 (업무일지 제목에 표시)</label><input type="text" id="s-teamname" value="${escapeHtml(s.teamName || "")}" placeholder="예: 나의 업무" /></div>
+      <h2>⚙ 연결 설정</h2>
+      <p>기존 시스템팀 work-hub와 같은 비밀번호를 입력하세요. 진짜 Notion 토큰은 브라우저에 저장되지 않고, Cloudflare Worker 프록시가 서버 쪽에서만 들고 있습니다.</p>
+      <div class="field"><label>비밀번호 (기존 work-hub와 동일)</label><input type="password" id="s-secret" value="${escapeHtml(s.appSecret || "")}" /></div>
+      <div class="field"><label>태스크 데이터소스 ID</label><input type="text" id="s-tasks" value="${escapeHtml(s.tasksDbId || D.tasksDbId)}" /></div>
+      <div class="field"><label>프로젝트 데이터소스 ID (선택)</label><input type="text" id="s-projects" value="${escapeHtml(s.projectsDbId || D.projectsDbId)}" /></div>
+      <div class="field"><label>회의록 데이터소스 ID (선택)</label><input type="text" id="s-meetings" value="${escapeHtml(s.meetingsDbId || D.meetingsDbId)}" /></div>
+      <div class="field"><label>팀 이름 (업무일지 제목에 표시)</label><input type="text" id="s-teamname" value="${escapeHtml(s.teamName || "시스템팀")}" /></div>
       <div class="field"><label>공휴일 API 키 (data.go.kr, 선택)</label><input type="text" id="s-holidaykey" value="${escapeHtml(s.holidayApiKey || "")}" /></div>
       <div class="field"><label>기상청 초단기실황 API 키 (선택, 날씨 온도 정확도용)</label><input type="text" id="s-kmakey" value="${escapeHtml(s.kmaApiKey || "")}" /></div>
       <div class="modal-actions">
@@ -72,11 +73,10 @@ function renderSettings() {
           <button class="btn btn-primary" id="s-save">저장</button>
         </div>
       </div>
-      <p style="margin-top:1rem;">데이터베이스 ID는 Notion에서 해당 페이지를 열고 주소창의 URL 중 32자리 영숫자(하이픈 없이) 부분입니다.</p>
     </div>`;
   document.getElementById("s-save").onclick = () => {
     const newSettings = {
-      token: document.getElementById("s-token").value.trim(),
+      appSecret: document.getElementById("s-secret").value.trim(),
       tasksDbId: document.getElementById("s-tasks").value.trim(),
       projectsDbId: document.getElementById("s-projects").value.trim(),
       meetingsDbId: document.getElementById("s-meetings").value.trim(),
@@ -87,13 +87,13 @@ function renderSettings() {
     NC.saveSettings(newSettings);
     state.settings = newSettings;
     showToast("설정이 저장되었습니다");
-    if (newSettings.token && newSettings.tasksDbId) { state.tab = "tasks"; loadAllAndRender(); }
+    if (newSettings.appSecret && newSettings.tasksDbId) { state.tab = "tasks"; loadAllAndRender(); }
   };
   document.getElementById("s-test").onclick = async () => {
     const statusEl = document.getElementById("s-status");
     statusEl.textContent = "확인 중...";
     const tmp = {
-      token: document.getElementById("s-token").value.trim(),
+      appSecret: document.getElementById("s-secret").value.trim(),
       tasksDbId: document.getElementById("s-tasks").value.trim(),
     };
     const prev = NC.getSettings();

@@ -176,11 +176,14 @@ function readSelect(prop) {
 function readMultiSelect(prop) {
   return (prop?.multi_select || []).map((s) => s.name);
 }
+// Notion 날짜 속성은 시간이 같이 저장된 항목이면 "2026-09-28T04:30:00.000+00:00"처럼 오는데,
+// 그대로 두면 문자열 비교("오늘 마감" 필터 등)와 <input type="date">가 둘 다 깨진다 —
+// 여기서 한 번에 날짜 부분(YYYY-MM-DD)만 남겨서, 이후 모든 코드는 항상 순수 날짜만 다루면 된다.
 function readDate(prop) {
-  return prop?.date?.start ?? null;
+  return prop?.date?.start?.slice(0, 10) ?? null;
 }
 function readDateEnd(prop) {
-  return prop?.date?.end ?? null;
+  return prop?.date?.end?.slice(0, 10) ?? null;
 }
 function readPeople(prop) {
   return (prop?.people || []).map((p) => ({ id: p.id, name: p.name }));

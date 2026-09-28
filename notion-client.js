@@ -237,3 +237,4 @@ window.NotionClient = {
   readTitle, readRichText, readSelect, readMultiSelect, readDate, readDateEnd,
   readPeople, readRelation, readCheckbox, readNumber,
 };
+window.NC = window.NotionClient; // app.js가 짧게 NC로 참조함

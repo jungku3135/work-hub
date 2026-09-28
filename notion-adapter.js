@@ -171,12 +171,25 @@
     listCache.meetings = null;
   }
 
+  // 첫 로딩 때 app.js가 api/tasks와 api/dashboard(내부적으로 태스크 전체가 또 필요함)를
+  // 동시에(Promise.all) 요청하는데, 그냥 캐시만 있으면 "아직 아무것도 없음"인 이 순간엔
+  // 서로 캐시를 못 보고 Notion에 똑같은 걸 두 번 따로 물어보게 된다. 진행 중인 요청 자체를
+  // 캐시해두면(single-flight) 나중에 온 쪽은 새로 요청하지 않고 먼저 간 요청을 같이 기다린다.
   async function cachedFetch(key, fetcher) {
     const entry = listCache[key];
+    if (entry?.promise) return entry.promise;
     if (entry && Date.now() - entry.time < LIST_CACHE_TTL_MS) return entry.data;
-    const data = await fetcher();
-    listCache[key] = { data, time: Date.now() };
-    return data;
+    const promise = fetcher()
+      .then((data) => {
+        listCache[key] = { data, time: Date.now() };
+        return data;
+      })
+      .catch((err) => {
+        listCache[key] = null; // 실패하면 캐시에 안 남겨서 다음 시도 때 다시 받아오게 함
+        throw err;
+      });
+    listCache[key] = { promise };
+    return promise;
   }
 
   async function fetchAllTasks() {

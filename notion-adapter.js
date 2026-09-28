@@ -158,17 +158,44 @@
     });
   }
 
+  // 서버 캐시(SQLite)가 없다 보니 화면 하나 그릴 때마다 Notion을 페이지네이션까지 새로 돌면
+  // 눈에 띄게 느려진다(프로젝트 상세를 열 때마다 태스크 188개를 처음부터 다시 받아오는 식).
+  // 짧게(10초)만 메모리에 캐싱해서 "탭 왔다갔다"는 즉시 반응하게 하고, 실제로 뭔가 쓰기가
+  // 일어나면(태스크/프로젝트/회의록 생성·수정·삭제) 캐시를 바로 비워서 항상 최신 데이터를 본다.
+  const LIST_CACHE_TTL_MS = 10000;
+  const listCache = { tasks: null, projects: null, meetings: null };
+
+  function invalidateListCache() {
+    listCache.tasks = null;
+    listCache.projects = null;
+    listCache.meetings = null;
+  }
+
+  async function cachedFetch(key, fetcher) {
+    const entry = listCache[key];
+    if (entry && Date.now() - entry.time < LIST_CACHE_TTL_MS) return entry.data;
+    const data = await fetcher();
+    listCache[key] = { data, time: Date.now() };
+    return data;
+  }
+
   async function fetchAllTasks() {
-    const pages = await NC.queryDatabaseAll(CFG.DEFAULT_DATA_SOURCES.tasksDbId);
-    return sortByAsc(pages.map(pageToTask), "dueDate");
+    return cachedFetch("tasks", async () => {
+      const pages = await NC.queryDatabaseAll(CFG.DEFAULT_DATA_SOURCES.tasksDbId);
+      return sortByAsc(pages.map(pageToTask), "dueDate");
+    });
   }
   async function fetchAllProjects() {
-    const pages = await NC.queryDatabaseAll(CFG.DEFAULT_DATA_SOURCES.projectsDbId);
-    return sortByAsc(pages.map(pageToProject), "dueDate");
+    return cachedFetch("projects", async () => {
+      const pages = await NC.queryDatabaseAll(CFG.DEFAULT_DATA_SOURCES.projectsDbId);
+      return sortByAsc(pages.map(pageToProject), "dueDate");
+    });
   }
   async function fetchAllMeetings() {
-    const pages = await NC.queryDatabaseAll(CFG.DEFAULT_DATA_SOURCES.meetingsDbId);
-    return sortByDesc(pages.map(pageToMeeting), "date");
+    return cachedFetch("meetings", async () => {
+      const pages = await NC.queryDatabaseAll(CFG.DEFAULT_DATA_SOURCES.meetingsDbId);
+      return sortByDesc(pages.map(pageToMeeting), "date");
+    });
   }
 
   // ---------- 태스크 ----------
@@ -589,6 +616,12 @@
     const resource = segments[1];
     const id = segments[2];
     const sub = segments[3];
+
+    // 태스크/프로젝트/회의록에 뭔가 쓰기가 일어나면(서로 관계로 얽혀 있어서 셋 다) 목록
+    // 캐시를 비워 다음 조회부터 바로 최신 상태를 받아오게 한다.
+    if (method !== "GET" && ["tasks", "projects", "meetings"].includes(resource)) {
+      invalidateListCache();
+    }
 
     switch (resource) {
       case "tasks":

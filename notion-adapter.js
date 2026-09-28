@@ -597,28 +597,38 @@
 
   // ---------- 공휴일 / 날씨 (Cloudflare Worker가 공공데이터포털·기상청 키를 대신 들고 프록시) ----------
 
-  const holidayCache = new Map();
-  async function fetchHolidays(year) {
+  const holidayCache = new Map(); // year -> Promise<holidays[]> (single-flight — 값 자체를 캐싱)
+  function fetchHolidays(year) {
     const y = Number(year) || new Date().getFullYear();
     if (!holidayCache.has(y)) {
-      try {
-        const res = await fetch(`${PROXY_ROOT}/holidays?year=${y}`);
-        holidayCache.set(y, res.ok ? await res.json() : []);
-      } catch {
-        holidayCache.set(y, []);
-      }
+      holidayCache.set(
+        y,
+        fetch(`${PROXY_ROOT}/holidays?year=${y}`)
+          .then((res) => (res.ok ? res.json() : []))
+          .catch(() => [])
+      );
     }
     return holidayCache.get(y);
   }
 
-  async function fetchWeather() {
-    try {
-      const res = await fetch(`${PROXY_ROOT}/weather`);
-      return res.ok ? res.json() : null;
-    } catch {
-      return null;
-    }
+  // 날씨는 몇 분 안에는 다시 바뀔 일이 없으므로 짧게(5분) 캐싱 — 대시보드를 여러 번 왔다갔다
+  // 해도 매번 새로 조회하지 않는다.
+  const WEATHER_CACHE_TTL_MS = 5 * 60 * 1000;
+  let weatherCache = null; // { promise, time }
+  function fetchWeather() {
+    if (weatherCache && Date.now() - weatherCache.time < WEATHER_CACHE_TTL_MS) return weatherCache.promise;
+    const promise = fetch(`${PROXY_ROOT}/weather`)
+      .then((res) => (res.ok ? res.json() : null))
+      .catch(() => null);
+    weatherCache = { promise, time: Date.now() };
+    return promise;
   }
+
+  // 대시보드가 렌더링될 때(ensureHolidays)/날씨 위젯이 뜰 때 그제서야 불러오기 시작하면
+  // 태스크/프로젝트 등을 다 받아온 "뒤에" 순차적으로 또 기다리게 된다 — 이 어댑터가 로드되는
+  // 시점에 바로(병렬로) 미리 요청해둬서, 실제로 필요해지는 시점엔 이미 캐시돼 있게 한다.
+  fetchHolidays(new Date().getFullYear());
+  fetchWeather();
 
   // ---------- 라우팅 ----------
 

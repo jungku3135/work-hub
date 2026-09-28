@@ -17,6 +17,7 @@ const TASK_PROPS = {
   dueDate: "마감일",
   assignees: "담당자",
   project: "프로젝트",
+  meetings: "관련 회의록",
   note: "텍스트",
   holidayWork: "휴일근무",
   recurrence: "반복",
@@ -39,6 +40,8 @@ const PROJECT_PROPS = {
   dueDate: "마감일",
   assignees: "담당자",
   description: "설명",
+  tasks: "관련 태스크",
+  meetings: "관련 회의록",
 };
 
 const PROJECT_STATUS_OPTIONS = ["계획", "진행중", "완료", "보류"];
@@ -49,20 +52,18 @@ const MEETING_PROPS = {
   attendees: "참석자",
   meetingType: "회의유형",
   project: "프로젝트",
+  tasks: "관련 태스크",
 };
 
 const MEETING_TYPE_OPTIONS = ["주간회의", "킥오프", "리뷰", "의사결정", "기타"];
 
-// 홀리데이/날씨 위젯 설정 — 필요하면 좌표를 자신의 지역으로 바꾸면 된다 (기본값: 안산)
-const WEATHER_LAT = 37.3;
-const WEATHER_LON = 126.8;
-const KMA_NX = 57;
-const KMA_NY = 121;
+// Notion 워크스페이스 닉네임을 화면 표시용 이름으로 바꿔주는 매핑 (팀 work-hub와 동일)
+const PEOPLE_NAME_OVERRIDES = { 정쿠: "강정규" };
 
 window.CONFIG = {
   DEFAULT_DATA_SOURCES,
   TASK_PROPS, TASK_STATUS_OPTIONS, PRIORITY_OPTIONS, RECURRENCE_OPTIONS, WORK_TYPE_OPTIONS,
   PROJECT_PROPS, PROJECT_STATUS_OPTIONS,
   MEETING_PROPS, MEETING_TYPE_OPTIONS,
-  WEATHER_LAT, WEATHER_LON, KMA_NX, KMA_NY,
+  PEOPLE_NAME_OVERRIDES,
 };

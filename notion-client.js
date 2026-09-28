@@ -34,6 +34,15 @@ function hasValidSettings() {
 let authPrompter = null;
 function setAuthPrompter(fn) { authPrompter = fn; }
 
+// "사용자 모드로 전환" 버튼처럼, 쓰기 시도와 무관하게 수동으로 비밀번호 입력창을 띄우고 싶을 때 쓴다
+async function promptAppSecret() {
+  if (!authPrompter) return false;
+  const entered = await authPrompter();
+  if (!entered) return false;
+  saveSettings({ ...getSettings(), appSecret: entered });
+  return true;
+}
+
 function isReadPath(path, method) {
   if (method === "GET" || method === undefined) return true;
   return /\/(data_sources|databases)\/[^/]+\/query$/.test(path);
@@ -106,6 +115,10 @@ async function archivePage(pageId) {
   });
 }
 
+async function getPage(pageId) {
+  return notionFetch(`/pages/${pageId}`);
+}
+
 async function getBlockChildren(blockId) {
   const results = [];
   let cursor = undefined;
@@ -123,6 +136,22 @@ async function appendBlockChildren(blockId, children) {
     method: "PATCH",
     body: JSON.stringify({ children }),
   });
+}
+
+async function deleteBlock(blockId) {
+  return notionFetch(`/blocks/${blockId}`, { method: "DELETE" });
+}
+
+async function listUsers() {
+  const results = [];
+  let cursor;
+  do {
+    const qs = cursor ? `?start_cursor=${cursor}&page_size=100` : "?page_size=100";
+    const page = await notionFetch(`/users${qs}`);
+    results.push(...page.results);
+    cursor = page.has_more ? page.next_cursor : undefined;
+  } while (cursor);
+  return results;
 }
 
 // ── 프로퍼티 값 빌더 (Notion이 요구하는 형식으로 감싸주는 헬퍼들) ──
@@ -176,14 +205,15 @@ function readSelect(prop) {
 function readMultiSelect(prop) {
   return (prop?.multi_select || []).map((s) => s.name);
 }
-// Notion 날짜 속성은 시간이 같이 저장된 항목이면 "2026-09-28T04:30:00.000+00:00"처럼 오는데,
-// 그대로 두면 문자열 비교("오늘 마감" 필터 등)와 <input type="date">가 둘 다 깨진다 —
-// 여기서 한 번에 날짜 부분(YYYY-MM-DD)만 남겨서, 이후 모든 코드는 항상 순수 날짜만 다루면 된다.
+// 원본 work-hub 백엔드(notion/mappers.ts)와 동일하게 Notion이 준 날짜 문자열을 그대로 돌려준다 —
+// 시간이 있는 값("2026-09-28T04:30:00.000+00:00")도 그대로 두는 게 맞다. app.js가 이미
+// splitDateTime()/combineDateTime()으로 날짜·시간부를 알아서 나누고 합치도록 만들어져 있어서,
+// 여기서 미리 잘라버리면 태스크의 마감 "시각"(예: 오후 3시 마감)이 통째로 사라진다.
 function readDate(prop) {
-  return prop?.date?.start?.slice(0, 10) ?? null;
+  return prop?.date?.start ?? null;
 }
 function readDateEnd(prop) {
-  return prop?.date?.end?.slice(0, 10) ?? null;
+  return prop?.date?.end ?? null;
 }
 function readPeople(prop) {
   return (prop?.people || []).map((p) => ({ id: p.id, name: p.name }));
@@ -199,9 +229,9 @@ function readNumber(prop) {
 }
 
 window.NotionClient = {
-  getSettings, saveSettings, hasValidSettings, setAuthPrompter,
-  queryDatabaseAll, createPage, updatePageProperties, archivePage,
-  getBlockChildren, appendBlockChildren,
+  getSettings, saveSettings, hasValidSettings, setAuthPrompter, promptAppSecret,
+  queryDatabaseAll, createPage, updatePageProperties, archivePage, getPage,
+  getBlockChildren, appendBlockChildren, deleteBlock, listUsers,
   buildTitle, buildRichText, buildSelect, buildMultiSelect, buildDate,
   buildPeople, buildRelation, buildCheckbox, buildNumber, chunkString,
   readTitle, readRichText, readSelect, readMultiSelect, readDate, readDateEnd,

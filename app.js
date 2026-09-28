@@ -58,8 +58,8 @@ function renderSettings() {
   app.innerHTML = `
     <div class="settings-box">
       <h2>⚙ 연결 설정</h2>
-      <p>기존 시스템팀 work-hub와 같은 비밀번호를 입력하세요. 진짜 Notion 토큰은 브라우저에 저장되지 않고, Cloudflare Worker 프록시가 서버 쪽에서만 들고 있습니다.</p>
-      <div class="field"><label>비밀번호 (기존 work-hub와 동일)</label><input type="password" id="s-secret" value="${escapeHtml(s.appSecret || "")}" /></div>
+      <p>조회는 비밀번호 없이 누구나 됩니다. 작성·수정·삭제할 때만 비밀번호(기존 work-hub와 동일)를 물어봅니다 — 여기서 미리 입력해둘 수도 있습니다. 진짜 Notion 토큰은 브라우저에 저장되지 않고, Cloudflare Worker 프록시가 서버 쪽에서만 들고 있습니다.</p>
+      <div class="field"><label>비밀번호 (기존 work-hub와 동일, 선택 — 안 넣으면 쓰기 시도할 때 물어봄)</label><input type="password" id="s-secret" value="${escapeHtml(s.appSecret || "")}" /></div>
       <div class="field"><label>태스크 데이터소스 ID</label><input type="text" id="s-tasks" value="${escapeHtml(s.tasksDbId || D.tasksDbId)}" /></div>
       <div class="field"><label>프로젝트 데이터소스 ID (선택)</label><input type="text" id="s-projects" value="${escapeHtml(s.projectsDbId || D.projectsDbId)}" /></div>
       <div class="field"><label>회의록 데이터소스 ID (선택)</label><input type="text" id="s-meetings" value="${escapeHtml(s.meetingsDbId || D.meetingsDbId)}" /></div>
@@ -87,7 +87,8 @@ function renderSettings() {
     NC.saveSettings(newSettings);
     state.settings = newSettings;
     showToast("설정이 저장되었습니다");
-    if (newSettings.appSecret && newSettings.tasksDbId) { state.tab = "tasks"; loadAllAndRender(); }
+    state.tab = "tasks";
+    loadAllAndRender();
   };
   document.getElementById("s-test").onclick = async () => {
     const statusEl = document.getElementById("s-status");
@@ -139,18 +140,23 @@ function checklistProgress(checklist) {
   return Math.round((checklist.filter((i) => i.checked).length / checklist.length) * 100);
 }
 
+// 설정에서 덮어쓴 값이 있으면 그걸, 없으면 config.js의 시스템팀 기본값을 쓴다 —
+// 이래야 사용자가 아무것도 입력 안 해도 조회는 바로 되는 원래 work-hub와 같은 경험이 된다.
+function dbId(key) {
+  return state.settings[key] || CFG.DEFAULT_DATA_SOURCES[key];
+}
+
 async function loadAllAndRender() {
-  if (!NC.hasValidSettings()) { state.tab = "settings"; render(); return; }
   app.innerHTML = `<div class="muted" style="padding:2rem;">불러오는 중...</div>`;
   try {
-    const taskPages = await NC.queryDatabaseAll(state.settings.tasksDbId);
+    const taskPages = await NC.queryDatabaseAll(dbId("tasksDbId"));
     state.tasks = taskPages.map(pageToTask);
-    if (state.settings.projectsDbId) {
-      const projPages = await NC.queryDatabaseAll(state.settings.projectsDbId);
+    if (dbId("projectsDbId")) {
+      const projPages = await NC.queryDatabaseAll(dbId("projectsDbId"));
       state.projects = projPages.map(pageToProject);
     }
-    if (state.settings.meetingsDbId) {
-      const meetPages = await NC.queryDatabaseAll(state.settings.meetingsDbId, {
+    if (dbId("meetingsDbId")) {
+      const meetPages = await NC.queryDatabaseAll(dbId("meetingsDbId"), {
         sorts: [{ property: CFG.MEETING_PROPS.date, direction: "descending" }],
       });
       state.meetings = meetPages.map(pageToMeeting);
@@ -285,7 +291,7 @@ async function createNextOccurrence(t) {
   }
   const TP = CFG.TASK_PROPS;
   const nextChecklist = (t.checklist || []).map((i) => ({ ...i, checked: false }));
-  await NC.createPage(state.settings.tasksDbId, {
+  await NC.createPage(dbId("tasksDbId"), {
     [TP.name]: NC.buildTitle(t.name),
     [TP.status]: NC.buildSelect("할 일"),
     [TP.category]: NC.buildSelect(t.category),
@@ -392,7 +398,7 @@ function openTaskModal(t) {
       };
       try {
         if (isNew) {
-          const page = await NC.createPage(state.settings.tasksDbId, properties);
+          const page = await NC.createPage(dbId("tasksDbId"), properties);
           state.tasks.push(pageToTask(page));
         } else {
           const becameDone = t.status !== "완료" && form.status.value === "완료";
@@ -466,7 +472,7 @@ function openProjectModal(p) {
         [PP.dueDate]: NC.buildDate(form.dueDate.value), [PP.description]: NC.buildRichText(form.description.value),
       };
       try {
-        if (isNew) { const page = await NC.createPage(state.settings.projectsDbId, properties); state.projects.push(pageToProject(page)); }
+        if (isNew) { const page = await NC.createPage(dbId("projectsDbId"), properties); state.projects.push(pageToProject(page)); }
         else { await NC.updatePageProperties(p.id, properties); Object.assign(p, { name: form.name.value, status: form.status.value, priority: form.priority.value, startDate: form.startDate.value, dueDate: form.dueDate.value, description: form.description.value }); }
         closeModal(); renderProjects(); showToast("저장되었습니다");
       } catch (err) { showToast(err.message, true); }
@@ -517,7 +523,7 @@ function openMeetingModal(m) {
       const form = e.target; const MP = CFG.MEETING_PROPS;
       const properties = { [MP.title]: NC.buildTitle(form.title.value), [MP.date]: NC.buildDate(form.date.value), [MP.meetingType]: NC.buildSelect(form.meetingType.value) };
       try {
-        if (isNew) { const page = await NC.createPage(state.settings.meetingsDbId, properties); state.meetings.push(pageToMeeting(page)); }
+        if (isNew) { const page = await NC.createPage(dbId("meetingsDbId"), properties); state.meetings.push(pageToMeeting(page)); }
         else { await NC.updatePageProperties(m.id, properties); Object.assign(m, { title: form.title.value, date: form.date.value, meetingType: form.meetingType.value }); }
         closeModal(); renderMeetings(); showToast("저장되었습니다");
       } catch (err) { showToast(err.message, true); }
@@ -671,7 +677,6 @@ async function initWeather() {
 function render() {
   document.querySelectorAll(".tab-btn").forEach((b) => b.classList.toggle("active", b.dataset.tab === state.tab));
   if (state.tab === "settings") return renderSettings();
-  if (!NC.hasValidSettings()) { state.tab = "settings"; return renderSettings(); }
   if (state.tab === "tasks") return renderTasks();
   if (state.tab === "projects") return renderProjects();
   if (state.tab === "meetings") return renderMeetings();
@@ -682,8 +687,33 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => { state.tab = btn.dataset.tab; render(); });
 });
 
+// ---------- 쓰기(생성/수정/삭제) 시도 시점에만 비밀번호를 물어보는 모달 — 기존 work-hub의
+// ensureAuthToken()과 같은 패턴. 한 번 입력하면 이 브라우저에서는 다시 안 묻는다.
+NC.setAuthPrompter(() => new Promise((resolve) => {
+  openModal(`
+    <h3>🔒 비밀번호 확인</h3>
+    <p class="muted" style="margin-top:-0.4rem;">작성·수정·삭제하려면 비밀번호를 입력하세요. 한 번 입력하면 이 브라우저에서는 다시 묻지 않습니다.</p>
+    <form id="auth-form">
+      <div class="field"><input type="password" name="password" placeholder="비밀번호" required /></div>
+      <div class="modal-actions">
+        <span></span>
+        <div class="modal-actions-right">
+          <button type="button" class="btn" id="auth-cancel-btn">취소</button>
+          <button type="submit" class="btn btn-primary">확인</button>
+        </div>
+      </div>
+    </form>`, (modal) => {
+    modal.querySelector('input[name="password"]').focus();
+    modal.querySelector("#auth-cancel-btn").onclick = () => { closeModal(); resolve(null); };
+    modal.querySelector("#auth-form").onsubmit = (e) => {
+      e.preventDefault();
+      closeModal();
+      resolve(e.target.password.value);
+    };
+  });
+}));
+
 // ---------- init ----------
 (async function init() {
-  if (!NC.hasValidSettings()) { state.tab = "settings"; render(); return; }
   await loadAllAndRender();
 })();

@@ -23,24 +23,45 @@ function saveSettings(settings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
 }
 
+// 데이터소스 ID는 config.js의 기본값이 항상 있어서 사실상 언제나 true — 뷰(조회)는
+// 아무 설정 없이도 바로 되어야 한다는 요구사항 때문에 별도 "설정 완료 여부" 게이트는 두지 않는다.
 function hasValidSettings() {
-  const s = getSettings();
-  return !!(s.appSecret && s.tasksDbId);
+  return true;
+}
+
+// 조회(읽기)는 비밀번호 없이, 생성/수정/삭제(쓰기)만 비밀번호가 필요 — 기존 work-hub와 동일.
+// 쓰기 시도 시점에 비밀번호가 없으면 UI에 물어보게 하는 콜백을 app.js가 등록해둔다.
+let authPrompter = null;
+function setAuthPrompter(fn) { authPrompter = fn; }
+
+function isReadPath(path, method) {
+  if (method === "GET" || method === undefined) return true;
+  return /\/(data_sources|databases)\/[^/]+\/query$/.test(path);
+}
+
+async function ensureAppSecret() {
+  const existing = getSettings().appSecret;
+  if (existing) return existing;
+  if (!authPrompter) throw new Error("비밀번호가 필요합니다");
+  const entered = await authPrompter();
+  if (!entered) throw new Error("취소되었습니다");
+  saveSettings({ ...getSettings(), appSecret: entered });
+  return entered;
 }
 
 async function notionFetch(path, options = {}) {
-  const { appSecret } = getSettings();
-  if (!appSecret) throw new Error("NOTION_NOT_CONFIGURED");
-  const res = await fetch(`${NOTION_API_BASE}${path}`, {
-    ...options,
-    headers: {
-      "X-App-Secret": appSecret,
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
-  });
+  const method = options.method || "GET";
+  const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+  if (!isReadPath(path, method)) {
+    headers["X-App-Secret"] = await ensureAppSecret();
+  } else {
+    const { appSecret } = getSettings();
+    if (appSecret) headers["X-App-Secret"] = appSecret; // 있으면 같이 보내도 무해함
+  }
+  const res = await fetch(`${NOTION_API_BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+    if (res.status === 401) saveSettings({ ...getSettings(), appSecret: "" }); // 틀린 비번은 지워서 다음 시도 때 다시 묻게
     const err = new Error(body.message || `Notion API 오류 (${res.status})`);
     err.status = res.status;
     err.code = body.code;
@@ -175,7 +196,7 @@ function readNumber(prop) {
 }
 
 window.NotionClient = {
-  getSettings, saveSettings, hasValidSettings,
+  getSettings, saveSettings, hasValidSettings, setAuthPrompter,
   queryDatabaseAll, createPage, updatePageProperties, archivePage,
   getBlockChildren, appendBlockChildren,
   buildTitle, buildRichText, buildSelect, buildMultiSelect, buildDate,

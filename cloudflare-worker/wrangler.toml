@@ -1,0 +1,7 @@
+name = "work-hub-notion-proxy"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+account_id = "85785eb80a7cdf0d9175d81ec75a907a"
+
+[vars]
+ALLOWED_ORIGIN = "https://jungku3135.github.io"

@@ -34,11 +34,22 @@ function hasValidSettings() {
 let authPrompter = null;
 function setAuthPrompter(fn) { authPrompter = fn; }
 
+// HTTP 헤더 값에는 ISO-8859-1 문자만 넣을 수 있다. 한/영 전환이 한글 상태로 비밀번호를 입력하면
+// 한글이 섞인 값이 저장되고, 그러면 fetch 자체가 예외를 던져 읽기 요청(초기 로딩)까지 전부 실패한다.
+const INVALID_SECRET_MSG = "비밀번호에 한글 등 사용할 수 없는 문자가 들어 있습니다. 한/영 전환 상태를 확인하고 다시 입력하세요.";
+function isHeaderSafe(value) {
+  return /^[\x00-\xff]*$/.test(value);
+}
+
 // "사용자 모드로 전환" 버튼처럼, 쓰기 시도와 무관하게 수동으로 비밀번호 입력창을 띄우고 싶을 때 쓴다
 async function promptAppSecret() {
   if (!authPrompter) return false;
   const entered = await authPrompter();
   if (!entered) return false;
+  if (!isHeaderSafe(entered)) {
+    alert(INVALID_SECRET_MSG);
+    return false;
+  }
   saveSettings({ ...getSettings(), appSecret: entered });
   return true;
 }
@@ -50,10 +61,11 @@ function isReadPath(path, method) {
 
 async function ensureAppSecret() {
   const existing = getSettings().appSecret;
-  if (existing) return existing;
+  if (existing && isHeaderSafe(existing)) return existing;
   if (!authPrompter) throw new Error("비밀번호가 필요합니다");
   const entered = await authPrompter();
   if (!entered) throw new Error("취소되었습니다");
+  if (!isHeaderSafe(entered)) throw new Error(INVALID_SECRET_MSG);
   saveSettings({ ...getSettings(), appSecret: entered });
   return entered;
 }
@@ -65,7 +77,12 @@ async function notionFetch(path, options = {}) {
     headers["X-App-Secret"] = await ensureAppSecret();
   } else {
     const { appSecret } = getSettings();
-    if (appSecret) headers["X-App-Secret"] = appSecret; // 있으면 같이 보내도 무해함
+    if (appSecret && isHeaderSafe(appSecret)) {
+      headers["X-App-Secret"] = appSecret; // 있으면 같이 보내도 무해함
+    } else if (appSecret) {
+      // 이전에 잘못 저장된(한글 섞인) 비밀번호 — 어차피 틀린 값이니 지워서 다음 쓰기 때 다시 묻게 한다
+      saveSettings({ ...getSettings(), appSecret: "" });
+    }
   }
   const res = await fetch(`${NOTION_API_BASE}${path}`, { ...options, headers });
   if (!res.ok) {

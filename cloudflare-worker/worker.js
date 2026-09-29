@@ -142,15 +142,13 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === "/holidays") return handleHolidays(url, env);
     if (url.pathname === "/weather") return handleWeather(env);
+    // 비밀번호 입력 시점에 맞는지 바로 확인하는 용도 — 틀리면 401, 맞으면 { ok: true }
+    if (url.pathname === "/auth-check") {
+      return isAuthorized(request, env) ? jsonResponse({ ok: true }, env) : unauthorizedResponse(env);
+    }
 
-    if (!isReadOnlyRequest(request.method, url.pathname)) {
-      const appSecret = request.headers.get("X-App-Secret");
-      if (!env.APP_SECRET || appSecret !== env.APP_SECRET) {
-        return new Response(JSON.stringify({ message: "Unauthorized" }), {
-          status: 401,
-          headers: { "Content-Type": "application/json", ...corsHeaders(env) },
-        });
-      }
+    if (!isReadOnlyRequest(request.method, url.pathname) && !isAuthorized(request, env)) {
+      return unauthorizedResponse(env);
     }
 
     const notionUrl = `https://api.notion.com${url.pathname}${url.search}`;
@@ -173,6 +171,17 @@ export default {
     return new Response(notionRes.body, { status: notionRes.status, headers: resHeaders });
   },
 };
+
+function isAuthorized(request, env) {
+  return !!env.APP_SECRET && request.headers.get("X-App-Secret") === env.APP_SECRET;
+}
+
+function unauthorizedResponse(env) {
+  return new Response(JSON.stringify({ message: "Unauthorized" }), {
+    status: 401,
+    headers: { "Content-Type": "application/json", ...corsHeaders(env) },
+  });
+}
 
 function corsHeaders(env) {
   return {

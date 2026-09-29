@@ -7,7 +7,8 @@
    백엔드(src/notion/client.ts)와 동일한 버전/엔드포인트.
 ══════════════════════════════════════════════════════════════ */
 
-const NOTION_API_BASE = "https://work-hub-notion-proxy.work-hub-proxy.workers.dev/v1";
+const PROXY_ROOT = "https://work-hub-notion-proxy.work-hub-proxy.workers.dev";
+const NOTION_API_BASE = `${PROXY_ROOT}/v1`;
 
 const SETTINGS_KEY = "wh-settings"; // { appSecret, tasksDbId, projectsDbId, meetingsDbId }
 
@@ -41,15 +42,20 @@ function isHeaderSafe(value) {
   return /^[\x00-\xff]*$/.test(value);
 }
 
-// "사용자 모드로 전환" 버튼처럼, 쓰기 시도와 무관하게 수동으로 비밀번호 입력창을 띄우고 싶을 때 쓴다
+// 비밀번호 입력창에서 저장 전에 맞는지 Worker에 바로 물어본다 (틀리면 401).
+// 401만 "틀림"으로 보는 이유: /auth-check가 없는 이전 버전 Worker에서도 비밀번호가 맞으면
+// 인증은 통과하고 Notion 쪽 404가 오므로, 결과적으로 똑같이 판별된다.
+async function verifyAppSecret(secret) {
+  const res = await fetch(`${PROXY_ROOT}/auth-check`, { method: "POST", headers: { "X-App-Secret": secret } });
+  return res.status !== 401;
+}
+
+// "사용자 모드로 전환" 버튼처럼, 쓰기 시도와 무관하게 수동으로 비밀번호 입력창을 띄우고 싶을 때 쓴다.
+// 프롬프터(app.js)는 검증을 통과한 비밀번호만 돌려준다.
 async function promptAppSecret() {
   if (!authPrompter) return false;
   const entered = await authPrompter();
-  if (!entered) return false;
-  if (!isHeaderSafe(entered)) {
-    alert(INVALID_SECRET_MSG);
-    return false;
-  }
+  if (!entered || !isHeaderSafe(entered)) return false;
   saveSettings({ ...getSettings(), appSecret: entered });
   return true;
 }
@@ -67,6 +73,7 @@ async function ensureAppSecret() {
   if (!entered) throw new Error("취소되었습니다");
   if (!isHeaderSafe(entered)) throw new Error(INVALID_SECRET_MSG);
   saveSettings({ ...getSettings(), appSecret: entered });
+  window.dispatchEvent(new Event("wh-auth-changed"));
   return entered;
 }
 
@@ -87,7 +94,15 @@ async function notionFetch(path, options = {}) {
   const res = await fetch(`${NOTION_API_BASE}${path}`, { ...options, headers });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
-    if (res.status === 401) saveSettings({ ...getSettings(), appSecret: "" }); // 틀린 비번은 지워서 다음 시도 때 다시 묻게
+    if (res.status === 401) {
+      // 입력 때 검증했더라도 그 사이 서버 비밀번호가 바뀌었을 수 있다 — 지워서 다음 시도 때 다시 묻게 하고,
+      // 상단 모드 표시도 바로 뷰어 모드로 돌리도록 app.js에 알린다
+      saveSettings({ ...getSettings(), appSecret: "" });
+      window.dispatchEvent(new Event("wh-auth-changed"));
+      const err = new Error("비밀번호가 틀렸거나 변경되었습니다. 다시 시도하면 비밀번호를 입력할 수 있습니다.");
+      err.status = 401;
+      throw err;
+    }
     const err = new Error(body.message || `Notion API 오류 (${res.status})`);
     err.status = res.status;
     err.code = body.code;
@@ -247,6 +262,7 @@ function readNumber(prop) {
 
 window.NotionClient = {
   getSettings, saveSettings, hasValidSettings, setAuthPrompter, promptAppSecret,
+  verifyAppSecret, isHeaderSafe, INVALID_SECRET_MSG,
   queryDatabaseAll, createPage, updatePageProperties, archivePage, getPage,
   getBlockChildren, appendBlockChildren, deleteBlock, listUsers,
   buildTitle, buildRichText, buildSelect, buildMultiSelect, buildDate,

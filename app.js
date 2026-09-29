@@ -101,13 +101,15 @@ function getAuthToken() {
   return NC.getSettings().appSecret || null;
 }
 
-// notion-client.js가 쓰기 시도 시점에 이 프롬프터를 호출한다 — 기존 인증 모달 UI를 그대로 재활용
+// notion-client.js가 쓰기 시도 시점에 이 프롬프터를 호출한다 — 기존 인증 모달 UI를 그대로 재활용.
+// 확인을 누르면 Worker에 비밀번호가 맞는지 먼저 물어보고, 틀리면 창을 닫지 않고 그 자리에서 알려준다.
 NC.setAuthPrompter(() => new Promise((resolve) => {
   openAuthModal(
     `<h3>🔒 비밀번호 확인</h3>
     <p class="muted" style="margin-top:-0.4rem;">작성·수정·삭제하려면 비밀번호를 입력하세요. 한 번 입력하면 이 브라우저에서는 다시 묻지 않습니다.</p>
     <form id="auth-form">
       <div class="field"><input type="password" name="password" placeholder="비밀번호" required /></div>
+      <p id="auth-error" class="hidden" style="color:var(--danger);margin:-0.2rem 0 0.6rem;font-size:0.9em;"></p>
       <div class="modal-actions">
         <span></span>
         <div class="modal-actions-right">
@@ -119,11 +121,29 @@ NC.setAuthPrompter(() => new Promise((resolve) => {
     (modal) => {
       modal.querySelector('input[name="password"]').focus();
       modal.querySelector("#auth-cancel-btn").onclick = () => { closeAuthModal(); resolve(null); };
-      modal.querySelector("#auth-form").onsubmit = (e) => {
+      const form = modal.querySelector("#auth-form");
+      const input = form.password;
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const errorEl = modal.querySelector("#auth-error");
+      const showError = (msg) => {
+        errorEl.textContent = msg;
+        errorEl.classList.remove("hidden");
+        input.select();
+      };
+      form.onsubmit = async (e) => {
         e.preventDefault();
+        const value = input.value;
+        if (!NC.isHeaderSafe(value)) return showError(NC.INVALID_SECRET_MSG);
+        submitBtn.disabled = true;
+        try {
+          if (!(await NC.verifyAppSecret(value))) return showError("비밀번호가 틀렸습니다. 다시 입력하세요.");
+        } catch {
+          return showError("비밀번호를 확인하지 못했습니다. 인터넷 연결을 확인하고 다시 시도하세요.");
+        } finally {
+          submitBtn.disabled = false;
+        }
         closeAuthModal();
-        updateModeIndicator();
-        resolve(e.target.password.value);
+        resolve(value);
       };
     }
   );
@@ -1177,6 +1197,8 @@ async function updateModeIndicator() {
 function initModeIndicator() {
   const el = document.getElementById("mode-indicator");
   if (!el) return;
+  // 비밀번호가 저장되거나, 쓰기 요청이 401로 거부돼 지워지면 상단 모드 표시를 바로 갱신
+  window.addEventListener("wh-auth-changed", updateModeIndicator);
   el.onclick = async () => {
     const valid = await checkAuthValid();
     if (valid) {

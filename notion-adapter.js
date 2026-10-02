@@ -7,9 +7,10 @@
    동일한 로직으로 이식했다. 다만 SQLite가 없으므로:
    - 태스크/프로젝트/회의록 목록은 캐싱 없이 매번 Notion에서 새로 조회한다 (데이터가
      188개 수준이라 충분히 빠르고, "누가 접속하든 항상 최신"이라는 장점도 있다).
-   - Notion에는 없는 필드(커스텀 담당자/참석자, 커스텀 인물 목록)는 이 브라우저의
-     localStorage에 보관한다 — 원래는 팀 서버의 SQLite에 있던 값이라 기기마다 따로 논다는
-     차이는 있지만, Notion 계정이 없는 사람 이름을 자유 입력하는 보조 기능이라 감수한다.
+   - 커스텀 담당자/참석자(Notion 계정 없는 인원)는 원래 팀 서버의 SQLite에 있던 값이라,
+     각 DB의 텍스트 속성("커스텀 담당자"/"커스텀 참석자", 쉼표 구분)에 저장해서 누가 어느
+     기기로 접속하든 똑같이 보이게 한다. 커스텀 인물 목록은 별도 저장 없이 이 값들을 모아서 만든다.
+     (예전 버전이 이 브라우저 localStorage에만 넣어둔 값은 읽기 폴백 + Notion으로 1회 이전한다.)
 ══════════════════════════════════════════════════════════════ */
 
 (function () {
@@ -17,7 +18,21 @@
   const CFG = window.CONFIG;
   const PROXY_ROOT = "https://work-hub-notion-proxy.work-hub-proxy.workers.dev";
 
-  // ---------- 로컬 보조 저장소 ----------
+  // ---------- 커스텀 담당자/참석자 (Notion 텍스트 속성에 쉼표 구분으로 저장) ----------
+
+  function readCustomNames(prop, legacyKind, pageId) {
+    const names = NC.readRichText(prop)
+      .split(",")
+      .map((n) => n.trim())
+      .filter(Boolean);
+    // 아직 Notion으로 이전되지 않은 예전 localStorage 값이 있으면 그거라도 보여준다
+    return names.length ? names : getCustomNames(legacyKind, pageId);
+  }
+  function buildCustomNames(names) {
+    return NC.buildRichText((names ?? []).map((n) => String(n).trim()).filter(Boolean).join(", "));
+  }
+
+  // ---------- 예전 버전이 쓰던 로컬 보조 저장소 (이전용으로만 남겨둠) ----------
   const LOCAL_KEY = "wh-local-extra";
 
   function loadLocal() {
@@ -33,22 +48,61 @@
   function getCustomNames(kind, id) {
     return loadLocal()[kind]?.[id] ?? [];
   }
-  function setCustomNames(kind, id, names) {
+  // 이 항목의 커스텀 이름을 Notion에 새로 저장했으면 예전 로컬 값은 더 이상 폴백으로 쓰면 안 된다
+  function dropLegacyNames(kind, id) {
     const local = loadLocal();
-    local[kind] = local[kind] || {};
-    local[kind][id] = names;
+    if (!local[kind]?.[id]) return;
+    delete local[kind][id];
     saveLocal(local);
   }
-  function getCustomPeopleList() {
+  // 이름만 먼저 등록해두고 아직 어느 항목에도 안 쓴 경우를 위한 목록 (쓰이는 순간부터는 Notion에 남는다)
+  function getPendingCustomPeople() {
     return loadLocal().customPeople ?? [];
   }
-  function addCustomPersonLocal(name) {
+  function addPendingCustomPerson(name) {
     const local = loadLocal();
     local.customPeople = local.customPeople || [];
     if (!local.customPeople.includes(name)) local.customPeople.push(name);
-    local.customPeople.sort();
     saveLocal(local);
-    return local.customPeople;
+  }
+
+  // 예전 버전이 localStorage에만 넣어둔 커스텀 담당자/참석자를 Notion 속성으로 옮긴다.
+  // 쓰기 권한(저장된 비밀번호)이 이미 있을 때만 조용히 실행 — 비밀번호 창을 띄우지는 않는다.
+  const LEGACY_KINDS = [
+    { kind: "taskAssignees", prop: () => CFG.TASK_PROPS.customAssignees },
+    { kind: "projectAssignees", prop: () => CFG.PROJECT_PROPS.customAssignees },
+    { kind: "meetingAttendees", prop: () => CFG.MEETING_PROPS.customAttendees },
+  ];
+  async function migrateLegacyCustomNames() {
+    const { appSecret } = NC.getSettings();
+    if (!appSecret || !NC.isHeaderSafe(appSecret)) return;
+    const local = loadLocal();
+    let migrated = false;
+    for (const { kind, prop } of LEGACY_KINDS) {
+      for (const [pageId, names] of Object.entries(local[kind] ?? {})) {
+        try {
+          if (names?.length) {
+            const page = await NC.getPage(pageId);
+            // Notion 쪽에 이미 값이 있으면(다른 기기에서 먼저 저장됨) 그쪽을 우선한다
+            if (!page.archived && !page.in_trash && !NC.readRichText(page.properties[prop()]).trim()) {
+              await NC.updatePageProperties(pageId, { [prop()]: buildCustomNames(names) });
+              migrated = true;
+            }
+          }
+          delete local[kind][pageId];
+          saveLocal(local);
+        } catch (err) {
+          // 404(삭제된 페이지)면 버리고, 그 외(네트워크/권한)는 다음 접속 때 다시 시도
+          if (err.status === 404) {
+            delete local[kind][pageId];
+            saveLocal(local);
+          } else if (err.status === 401) {
+            return;
+          }
+        }
+      }
+    }
+    if (migrated) invalidateListCache();
   }
 
   // ---------- Notion 페이지 -> 평범한 JS 객체 매핑 (팀 work-hub의 notion/mappers.ts와 동일) ----------
@@ -91,7 +145,7 @@
       startDate: NC.readDate(props[P.startDate]),
       dueDate: NC.readDate(props[P.dueDate]),
       assignees: readPeopleDisplay(props[P.assignees]),
-      customAssignees: getCustomNames("taskAssignees", page.id),
+      customAssignees: readCustomNames(props[P.customAssignees], "taskAssignees", page.id),
       projectIds: NC.readRelation(props[P.project]),
       note: NC.readRichText(props[P.note]),
       holidayWork: NC.readCheckbox(props[P.holidayWork]),
@@ -116,7 +170,7 @@
       startDate: NC.readDate(props[P.startDate]),
       dueDate: NC.readDate(props[P.dueDate]),
       assignees: readPeopleDisplay(props[P.assignees]),
-      customAssignees: getCustomNames("projectAssignees", page.id),
+      customAssignees: readCustomNames(props[P.customAssignees], "projectAssignees", page.id),
       description: NC.readRichText(props[P.description]),
       lastEditedTime: page.last_edited_time,
       url: page.url,
@@ -131,7 +185,7 @@
       title: NC.readTitle(props[P.title]) || "(제목 없음)",
       date: NC.readDate(props[P.date]),
       attendees: readPeopleDisplay(props[P.attendees]),
-      customAttendees: getCustomNames("meetingAttendees", page.id),
+      customAttendees: readCustomNames(props[P.customAttendees], "meetingAttendees", page.id),
       meetingType: NC.readSelect(props[P.meetingType]),
       projectIds: NC.readRelation(props[P.project]),
       taskIds: NC.readRelation(props[P.tasks]),
@@ -232,13 +286,9 @@
       [P.progress]: NC.buildNumber(finalProgress),
       [P.workType]: NC.buildSelect(payload.workType),
       [P.checklist]: buildChecklistProp(checklist),
+      [P.customAssignees]: buildCustomNames(payload.customAssigneeNames),
     });
-    const task = pageToTask(page);
-    if (Array.isArray(payload.customAssigneeNames)) {
-      setCustomNames("taskAssignees", task.id, payload.customAssigneeNames);
-      task.customAssignees = payload.customAssigneeNames;
-    }
-    return task;
+    return pageToTask(page);
   }
 
   // 반복 태스크가 "완료"로 바뀔 때 다음 회차를 자동 생성 — 팀 백엔드 routes/tasks.ts와 동일 로직
@@ -285,7 +335,7 @@
     }
     const nextChecklist = (task.checklist ?? []).map((i) => ({ ...i, checked: false }));
     const P = CFG.TASK_PROPS;
-    const page = await NC.createPage(CFG.DEFAULT_DATA_SOURCES.tasksDbId, {
+    await NC.createPage(CFG.DEFAULT_DATA_SOURCES.tasksDbId, {
       [P.name]: NC.buildTitle(task.name),
       [P.status]: NC.buildSelect("할 일"),
       [P.category]: NC.buildSelect(task.category),
@@ -300,9 +350,8 @@
       [P.progress]: NC.buildNumber(nextChecklist.length ? 0 : null),
       [P.workType]: NC.buildSelect(task.workType),
       [P.checklist]: buildChecklistProp(nextChecklist),
+      [P.customAssignees]: buildCustomNames(customAssigneeNames),
     });
-    const nextTask = pageToTask(page);
-    if (customAssigneeNames.length) setCustomNames("taskAssignees", nextTask.id, customAssigneeNames);
   }
 
   async function updateTask(id, payload) {
@@ -316,6 +365,10 @@
     if (payload.startDate !== undefined) properties[P.startDate] = NC.buildDate(payload.startDate);
     if (payload.dueDate !== undefined) properties[P.dueDate] = NC.buildDate(payload.dueDate);
     if (payload.assigneeIds !== undefined) properties[P.assignees] = NC.buildPeople(payload.assigneeIds);
+    if (Array.isArray(payload.customAssigneeNames)) {
+      dropLegacyNames("taskAssignees", id);
+      properties[P.customAssignees] = buildCustomNames(payload.customAssigneeNames);
+    }
     if (payload.projectId !== undefined) properties[P.project] = NC.buildRelation(payload.projectId ? [payload.projectId] : []);
     if (payload.note !== undefined) properties[P.note] = NC.buildRichText(payload.note);
     if (payload.holidayWork !== undefined) properties[P.holidayWork] = NC.buildCheckbox(payload.holidayWork);
@@ -332,15 +385,11 @@
 
     const page = await NC.updatePageProperties(id, properties);
     const task = pageToTask(page);
-    if (Array.isArray(payload.customAssigneeNames)) {
-      setCustomNames("taskAssignees", task.id, payload.customAssigneeNames);
-      task.customAssignees = payload.customAssigneeNames;
-    }
 
     const becameDone = payload.status === "완료" && existingTask.status !== "완료";
     const recurrenceJustEnabled = (existingTask.recurrence ?? "없음") === "없음" && !!task.recurrence && task.recurrence !== "없음";
     if (task.status === "완료" && task.recurrence && task.recurrence !== "없음" && (becameDone || recurrenceJustEnabled)) {
-      await createNextOccurrence(task, existingTask.customAssignees ?? []);
+      await createNextOccurrence(task, task.customAssignees ?? []);
     }
     return task;
   }
@@ -382,13 +431,9 @@
       [P.dueDate]: NC.buildDate(payload.dueDate),
       [P.assignees]: NC.buildPeople(payload.assigneeIds ?? []),
       [P.description]: NC.buildRichText(payload.description ?? ""),
+      [P.customAssignees]: buildCustomNames(payload.customAssigneeNames),
     });
-    const project = pageToProject(page);
-    if (Array.isArray(payload.customAssigneeNames)) {
-      setCustomNames("projectAssignees", project.id, payload.customAssigneeNames);
-      project.customAssignees = payload.customAssigneeNames;
-    }
-    return project;
+    return pageToProject(page);
   }
 
   async function updateProject(id, payload) {
@@ -402,14 +447,13 @@
     if (payload.dueDate !== undefined) properties[P.dueDate] = NC.buildDate(payload.dueDate);
     if (payload.assigneeIds !== undefined) properties[P.assignees] = NC.buildPeople(payload.assigneeIds);
     if (payload.description !== undefined) properties[P.description] = NC.buildRichText(payload.description);
+    if (Array.isArray(payload.customAssigneeNames)) {
+      dropLegacyNames("projectAssignees", id);
+      properties[P.customAssignees] = buildCustomNames(payload.customAssigneeNames);
+    }
 
     const page = await NC.updatePageProperties(id, properties);
-    const project = pageToProject(page);
-    if (Array.isArray(payload.customAssigneeNames)) {
-      setCustomNames("projectAssignees", project.id, payload.customAssigneeNames);
-      project.customAssignees = payload.customAssigneeNames;
-    }
-    return project;
+    return pageToProject(page);
   }
 
   async function handleProjects(method, id, params, body) {
@@ -492,14 +536,10 @@
       [P.meetingType]: NC.buildSelect(payload.meetingType),
       [P.project]: NC.buildRelation(payload.projectId ? [payload.projectId] : []),
       [P.tasks]: NC.buildRelation(payload.taskIds ?? []),
+      [P.customAttendees]: buildCustomNames(payload.customAttendeeNames),
     });
     await NC.appendBlockChildren(page.id, buildMeetingBodyBlocks(content));
-    const meeting = pageToMeeting(page);
-    if (Array.isArray(payload.customAttendeeNames)) {
-      setCustomNames("meetingAttendees", meeting.id, payload.customAttendeeNames);
-      meeting.customAttendees = payload.customAttendeeNames;
-    }
-    return { ...meeting, ...content };
+    return { ...pageToMeeting(page), ...content };
   }
 
   async function updateMeeting(id, payload) {
@@ -511,6 +551,10 @@
     if (payload.meetingType !== undefined) properties[P.meetingType] = NC.buildSelect(payload.meetingType);
     if (payload.projectId !== undefined) properties[P.project] = NC.buildRelation(payload.projectId ? [payload.projectId] : []);
     if (payload.taskIds !== undefined) properties[P.tasks] = NC.buildRelation(payload.taskIds);
+    if (Array.isArray(payload.customAttendeeNames)) {
+      dropLegacyNames("meetingAttendees", id);
+      properties[P.customAttendees] = buildCustomNames(payload.customAttendeeNames);
+    }
 
     const page = await NC.updatePageProperties(id, properties);
 
@@ -520,12 +564,7 @@
       await NC.appendBlockChildren(id, buildMeetingBodyBlocks({ items: payload.items }));
     }
 
-    const meeting = pageToMeeting(page);
-    if (Array.isArray(payload.customAttendeeNames)) {
-      setCustomNames("meetingAttendees", meeting.id, payload.customAttendeeNames);
-      meeting.customAttendees = payload.customAttendeeNames;
-    }
-    return meeting;
+    return pageToMeeting(page);
   }
 
   async function handleMeetings(method, id, sub, body) {
@@ -553,12 +592,23 @@
 
   // ---------- 커스텀 인물(Notion 계정 없는 담당자) ----------
 
+  // 태스크/프로젝트/회의록에 실제로 쓰인 커스텀 이름 전체 + 이 브라우저에서 방금 등록만 해둔 이름
+  async function listCustomPeople() {
+    const [tasks, projects, meetings] = await Promise.all([fetchAllTasks(), fetchAllProjects(), fetchAllMeetings()]);
+    const names = new Set(getPendingCustomPeople());
+    tasks.forEach((t) => t.customAssignees.forEach((n) => names.add(n)));
+    projects.forEach((p) => p.customAssignees.forEach((n) => names.add(n)));
+    meetings.forEach((m) => m.customAttendees.forEach((n) => names.add(n)));
+    return [...names].sort((a, b) => a.localeCompare(b, "ko"));
+  }
+
   async function handleCustomPeople(method, body) {
-    if (method === "GET") return getCustomPeopleList();
+    if (method === "GET") return listCustomPeople();
     if (method === "POST") {
-      const name = String(body?.name ?? "").trim().slice(0, 30);
+      const name = String(body?.name ?? "").replace(/,/g, " ").trim().slice(0, 30);
       if (!name) throw Object.assign(new Error("이름을 입력하세요"), { status: 400 });
-      return addCustomPersonLocal(name);
+      addPendingCustomPerson(name);
+      return listCustomPeople();
     }
     throw new Error("지원하지 않는 요청입니다");
   }
@@ -629,6 +679,7 @@
   // 시점에 바로(병렬로) 미리 요청해둬서, 실제로 필요해지는 시점엔 이미 캐시돼 있게 한다.
   fetchHolidays(new Date().getFullYear());
   fetchWeather();
+  migrateLegacyCustomNames().catch(() => {});
 
   // ---------- 라우팅 ----------
 

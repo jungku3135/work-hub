@@ -24,6 +24,7 @@ const TASK_PROPS = {
   progress: "진행률",
   workType: "업무유형",
   checklist: "체크리스트",
+  customAssignees: "커스텀 담당자", // Notion 계정 없는 담당자 이름 (쉼표 구분 텍스트)
 };
 
 const TASK_STATUS_OPTIONS = ["할 일", "진행중", "완료", "계획 취소"];
@@ -42,6 +43,7 @@ const PROJECT_PROPS = {
   description: "설명",
   tasks: "관련 태스크",
   meetings: "관련 회의록",
+  customAssignees: "커스텀 담당자",
 };
 
 const PROJECT_STATUS_OPTIONS = ["계획", "진행중", "완료", "보류"];
@@ -53,6 +55,7 @@ const MEETING_PROPS = {
   meetingType: "회의유형",
   project: "프로젝트",
   tasks: "관련 태스크",
+  customAttendees: "커스텀 참석자",
 };
 
 const MEETING_TYPE_OPTIONS = ["주간회의", "킥오프", "리뷰", "의사결정", "기타"];

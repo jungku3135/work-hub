@@ -217,6 +217,8 @@ function attachTaskQuickActionEvents(root, onSuccess) {
 
 // ---------- data loading ----------
 
+let lastLoadedAt = 0; // 자동 동기화 주기 판단용 — 처음 로딩/수동 동기화/자동 동기화 모두 여기서 갱신됨
+
 async function loadAll() {
   const [tasks, projects, meetings, people, customPeople, dashboard, sync] = await Promise.all([
     api("GET", "api/tasks"),
@@ -237,6 +239,7 @@ async function loadAll() {
     dashboard,
     lastSyncTime: sync.lastSyncTime,
   });
+  lastLoadedAt = Date.now();
   updateSyncLabel();
 }
 
@@ -280,22 +283,32 @@ function updateSyncLabel() {
   label.textContent = `마지막 동기화 ${d.toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}`;
 }
 
-// 서버가 백그라운드에서 주기적으로 동기화해도 탭을 계속 열어두면 화면이 그 시점 그대로 멈춰 있던 문제 —
-// 1분마다 마지막 동기화 시각을 확인해서, 서버 쪽에서 새로 동기화된 게 있으면 조용히 데이터를 새로고침한다.
-const SYNC_POLL_MS = 60_000;
+// 탭을 계속 열어두면 다른 사람이 Notion/다른 기기에서 바꾼 내용이 안 보이고 화면이 그 시점 그대로
+// 멈춰 있던 문제 — 탭이 보이는 동안 5분마다, 그리고 다른 창에 있다가 돌아왔을 때 마지막 동기화가
+// 5분보다 오래됐으면 조용히 Notion에서 다시 불러온다. 작성 폼/비밀번호 창이 열려 있으면 입력 중인
+// 내용이 날아가지 않게 이번 회차는 건너뛴다.
+const AUTO_SYNC_MS = 5 * 60_000;
 
-function startSyncStatusPoll() {
-  setInterval(async () => {
-    try {
-      const sync = await api("GET", "api/sync");
-      if (sync.lastSyncTime && sync.lastSyncTime !== state.lastSyncTime) {
-        await loadAll();
-        render();
-      }
-    } catch {
-      // 조용히 실패, 다음 폴링에서 재시도
-    }
-  }, SYNC_POLL_MS);
+async function autoSyncIfIdle() {
+  if (document.hidden) return;
+  if (!modalRoot.classList.contains("hidden") || !authModalRoot.classList.contains("hidden")) return;
+  if (Date.now() - lastLoadedAt < AUTO_SYNC_MS - 5000) return; // 타이머 오차 감안해 5초 여유
+  try {
+    const result = await api("POST", "api/sync");
+    state.lastSyncTime = result.lastSyncTime;
+    await loadAll();
+    // loadAll은 필터 없는 전체 목록을 넣으므로, 태스크 탭에 걸어둔 필터는 다시 적용한다
+    if (state.filters.category || state.filters.projectId || state.filters.assigneeId) await reloadTasks();
+    // 불러오는 사이 폼이 열렸으면 다시 그리지 않는다 (다음 렌더 때 새 데이터가 반영됨)
+    if (modalRoot.classList.contains("hidden")) render();
+  } catch {
+    // 조용히 실패, 다음 회차에 재시도
+  }
+}
+
+function startAutoSync() {
+  setInterval(autoSyncIfIdle, AUTO_SYNC_MS);
+  document.addEventListener("visibilitychange", autoSyncIfIdle);
 }
 
 // ---------- helpers ----------
@@ -2824,6 +2837,7 @@ async function copyReportToClipboard() {
     initNotifFab();
     initModeIndicator();
     showDailyTaskPopupIfNeeded();
+    startAutoSync();
   } catch (err) {
     app.innerHTML = `<div class="detail-block">초기 로딩에 실패했습니다: ${escapeHtml(err.message)}<br/><span class="muted">Notion 연결 설정을 확인하세요.</span></div>`;
   }

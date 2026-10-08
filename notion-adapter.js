@@ -246,9 +246,14 @@
     return promise;
   }
 
+  // "마지막 동기화" = 이 브라우저가 Notion에서 태스크 목록을 실제로 마지막으로 받아온 시각
+  // (첫 로딩, 수동 동기화, 자동 새로고침, 저장 후 재조회 모두 포함)
+  let lastSyncTime = null;
+
   async function fetchAllTasks() {
     return cachedFetch("tasks", async () => {
       const pages = await NC.queryDatabaseAll(CFG.DEFAULT_DATA_SOURCES.tasksDbId);
+      lastSyncTime = new Date().toISOString();
       return sortByAsc(pages.map(pageToTask), "dueDate");
     });
   }
@@ -634,12 +639,16 @@
   // ---------- 동기화 (원본은 SQLite 캐시를 Notion과 맞추는 개념이지만, 여기선 매번 직접
   // 조회하므로 "마지막 동기화 시각"은 그냥 이 브라우저가 마지막으로 데이터를 불러온 시각이다) ----------
 
-  let lastSyncTime = null;
   async function handleSync(method) {
-    if (method === "GET") return { lastSyncTime };
+    if (method === "GET") {
+      // 첫 로딩 때는 태스크 조회와 동시에 불리므로, 진행 중인 조회가 끝난 뒤의 시각을 돌려준다
+      // (single-flight 캐시라 추가 요청은 생기지 않는다)
+      await fetchAllTasks().catch(() => {});
+      return { lastSyncTime };
+    }
     if (method === "POST") {
+      invalidateListCache(); // "동기화"는 10초 캐시와 무관하게 항상 Notion에서 새로 받아온다
       const [tasks, projects, meetings] = await Promise.all([fetchAllTasks(), fetchAllProjects(), fetchAllMeetings()]);
-      lastSyncTime = new Date().toISOString();
       return { tasks: tasks.length, projects: projects.length, meetings: meetings.length, lastSyncTime };
     }
     throw new Error("지원하지 않는 요청입니다");

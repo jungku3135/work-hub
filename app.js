@@ -284,15 +284,18 @@ function updateSyncLabel() {
 }
 
 // 탭을 계속 열어두면 다른 사람이 Notion/다른 기기에서 바꾼 내용이 안 보이고 화면이 그 시점 그대로
-// 멈춰 있던 문제 — 탭이 보이는 동안 5분마다, 그리고 다른 창에 있다가 돌아왔을 때 마지막 동기화가
-// 5분보다 오래됐으면 조용히 Notion에서 다시 불러온다. 작성 폼/비밀번호 창이 열려 있으면 입력 중인
-// 내용이 날아가지 않게 이번 회차는 건너뛴다.
+// 멈춰 있던 문제 — 마지막으로 불러온 지 5분이 지났으면 조용히 Notion에서 다시 불러온다. 고정 5분
+// 타이머로 돌리면 중간에 수동 동기화를 하거나 폼 때문에 한 번 건너뛸 때 최대 10분까지 밀려서,
+// 30초마다 "5분 지났나"만 가볍게 확인한다. 탭이 안 보이거나 작성 폼/비밀번호 창이 열려 있으면
+// 건너뛰고(입력 중인 내용 보호), 다른 창에 있다가 돌아왔을 때도 바로 확인한다.
 const AUTO_SYNC_MS = 5 * 60_000;
+const AUTO_SYNC_CHECK_MS = 30_000;
 
 async function autoSyncIfIdle() {
   if (document.hidden) return;
   if (!modalRoot.classList.contains("hidden") || !authModalRoot.classList.contains("hidden")) return;
-  if (Date.now() - lastLoadedAt < AUTO_SYNC_MS - 5000) return; // 타이머 오차 감안해 5초 여유
+  if (Date.now() - lastLoadedAt < AUTO_SYNC_MS) return;
+  lastLoadedAt = Date.now(); // 실패해도 30초마다 재시도하지 않도록 다음 회차는 5분 뒤로 미룸
   try {
     const result = await api("POST", "api/sync");
     state.lastSyncTime = result.lastSyncTime;
@@ -307,7 +310,7 @@ async function autoSyncIfIdle() {
 }
 
 function startAutoSync() {
-  setInterval(autoSyncIfIdle, AUTO_SYNC_MS);
+  setInterval(autoSyncIfIdle, AUTO_SYNC_CHECK_MS);
   document.addEventListener("visibilitychange", autoSyncIfIdle);
 }
 

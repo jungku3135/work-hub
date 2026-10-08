@@ -28,7 +28,7 @@ const UTIL_LINKS = [
   // (우리 쪽에서 우회할 방법이 없음) — 미리보기 없이 그냥 새 탭으로 열리게 둔다
   { label: "AIR MAX 대시보드", url: "https://airmax.testonic.co.kr/", noPreview: true },
   { label: "AIR MAX 점검 대시보드", url: "https://testonicrnd.github.io/airmax-inspector/" },
-  { label: "3D Print Viewer", url: "https://user.tail1e87bb.ts.net/" },
+  { label: "3D Print Viewer", url: "https://192.168.0.29:8080/" },
   // http(평문) 사이트라 https인 이 앱 안에서 iframe으로 못 불러옴(Mixed Content, 브라우저가 강제 차단) —
   // 우리 쪽에서 우회할 방법이 없음. 미리보기 없이 그냥 새 탭으로 열리게 둔다
   { label: "Web Mail", url: "http://mail.testonic.co.kr/", noPreview: true },

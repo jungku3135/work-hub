@@ -723,7 +723,7 @@ select, option {
   /* 모바일: 상단은 제목 + 모드/동기화/테마 한 줄, 탭은 화면 아래 고정 내비게이션(아이콘 + 라벨) */
   .topbar { gap: 0.5rem; padding: 0.5rem 0.7rem 0.5rem 1rem; flex-wrap: nowrap; }
   .topbar h1 { flex: 1; font-size: 0.95rem; min-width: 0; }
-  .brand-team, #last-sync-label { display: none; }
+  #last-sync-label { display: none; }
   .sync-box { margin-left: 0; gap: 0.3rem; }
   .sync-box .btn { padding: 0.3rem 0.5rem; font-size: 0.75rem; }
   .mode-indicator { padding: 0.3rem 0.6rem; font-size: 0.74rem; }

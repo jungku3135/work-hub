@@ -535,9 +535,6 @@ document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
     state.tab = btn.dataset.tab;
     state.detailId = null;
     render();
-    app.classList.remove("view-enter");
-    void app.offsetWidth; // 같은 애니메이션을 다시 재생하려면 리플로우가 필요
-    app.classList.add("view-enter");
   });
 });
 
@@ -560,13 +557,47 @@ document.getElementById("sync-now-btn").addEventListener("click", async (e) => {
 
 // ---------- render router ----------
 
+// 화면(탭/상세)이 바뀌었을 때만 카드·패널이 14px 아래에서 70ms 간격으로 차례로 올라온다.
+// 같은 화면을 데이터만 갱신해 다시 그릴 때(자동 동기화, 저장 후 새로고침)는 재생하지 않는다.
+const REVEAL_SELECTOR = [
+  ".section-header", ".hero-widget", ".todo-panel", ".calendar", ".filters", ".board-col",
+  ".table-scroll", ".detail-header", ".detail-block", ".report-mode-tabs", ".report-sheet",
+  "#report-output > *", ".card-grid > .mini-card", ".card-list > .mini-card",
+].join(",");
+let lastViewKey = null;
+let revealObserver = null;
+
+function playViewEnter() {
+  revealObserver?.disconnect();
+  let index = 0;
+  const apply = () => {
+    app.querySelectorAll(REVEAL_SELECTOR).forEach((el) => {
+      if (el.dataset.reveal) return;
+      el.dataset.reveal = "1";
+      el.classList.add("reveal");
+      el.style.setProperty("--i", Math.min(index++, 10));
+    });
+  };
+  apply();
+  // 대시보드 등은 데이터를 기다린 뒤 비동기로 그려지므로, 잠깐 동안 새로 생기는 요소도 이어서 처리
+  revealObserver = new MutationObserver(apply);
+  revealObserver.observe(app, { childList: true, subtree: true });
+  setTimeout(() => revealObserver.disconnect(), 900);
+}
+
 function render() {
-  if (state.tab === "dashboard") return renderDashboard();
-  if (state.tab === "tasks") return renderTasks();
-  if (state.tab === "projects") return renderProjects();
-  if (state.tab === "project-detail") return renderProjectDetail();
-  if (state.tab === "meetings") return renderMeetings();
-  if (state.tab === "report") return renderReport();
+  const viewKey = `${state.tab}:${state.detailId ?? ""}`;
+  const viewChanged = viewKey !== lastViewKey;
+  lastViewKey = viewKey;
+  let result;
+  if (state.tab === "dashboard") result = renderDashboard();
+  else if (state.tab === "tasks") result = renderTasks();
+  else if (state.tab === "projects") result = renderProjects();
+  else if (state.tab === "project-detail") result = renderProjectDetail();
+  else if (state.tab === "meetings") result = renderMeetings();
+  else if (state.tab === "report") result = renderReport();
+  if (viewChanged) playViewEnter();
+  return result;
 }
 
 // ---------- dashboard ----------

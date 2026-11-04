@@ -83,6 +83,12 @@ Notion DB(태스크/프로젝트/회의록)를 **Cloudflare Worker 프록시**�
 ## 9. 커밋 이력 요약 (최근 → 과거, 총 19개)
 3D print 주소 변경 → 동기화 시각 자동 갱신 수정 → 5분 자동 새로고침 → 커스텀 담당자 Notion 저장 → 비밀번호 즉시 검증 → 한글 비밀번호 로딩 실패 수정 → Worker 소스 저장소 포함 → 공휴일/날씨 병렬 프리페치 → single-flight/10초 캐시 → 채팅 제거 후 오류 수정 → 원본 프론트엔드 이식(`acb5e68`) → 이전: from-scratch 1차 버전·대시보드·읽기/쓰기 분리·Worker 프록시 도입.
 
+## 9-1. 디자인 (2026-11-04 리디자인, gettakecontrol.app 참고)
+- 백업: 브랜치 `backup/pre-redesign` / 태그 `backup-pre-redesign-2026-11-04` (리디자인 이전 상태, 되돌릴 때 사용).
+- 토큰은 `style.css` 상단 `:root`(라이트) + 다크 2곳(`@media prefers-color-scheme` / `[data-theme=dark]`, 값 동일하게 유지). 검정 `--accent`(주 버튼/활성 탭), 주황 `--brand`(포인트), `--shadow-float`, `--ease-out`(cubic-bezier(.22,1,.36,1)), `--radius-xl`(32px), `--border-soft`.
+- 모션: 화면(탭/상세)이 바뀔 때만 `playViewEnter()`(app.js)가 카드/패널에 `.reveal`(14px 상승, 70ms 간격)을 붙임. 모달/드롭다운/탭 전환/호버 모두 같은 감속 곡선. `prefers-reduced-motion`이면 꺼짐.
+- 상단 바는 `backdrop-filter: blur(12px)` 알약. 표·달력은 밀도 유지(모서리/호버만 변경). 업무일지 출력물(xlsx/이미지/PDF)은 디자인과 무관.
+
 ## 10. 작업 시 팁
 - 속성명/옵션 변경 → `config.js` (+ app.js 상수도 확인).
 - 새 API 라우트 → `notion-adapter.js`의 `api()` switch에 추가, 쓰기면 캐시 무효화 대상 확인.

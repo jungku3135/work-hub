@@ -31,6 +31,7 @@
   --row-hover: #f2f2f0;
   --board-col-bg: #e2e1da;
   --glass-bg: rgba(250, 250, 249, 0.78);                 /* 블러 헤더 배경 */
+  --border-soft: color-mix(in srgb, var(--border) 55%, transparent); /* 카드 테두리는 거의 안 보이게 */
 
   --priority-high-bg: #fde3df; --priority-high-text: #a8322a;
   --priority-mid-bg: #fdecc8; --priority-mid-text: #8a6417;
@@ -122,7 +123,7 @@ body {
 @keyframes rise-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
 /* 항목 여러 개가 70ms 간격으로 차례로 올라오게 하려면 요소에 style="--i:N" 을 준다 */
-.reveal { animation: rise-in 0.65s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 70ms); }
+.reveal { animation: rise-in 0.65s var(--ease-out) backwards; animation-delay: calc(var(--i, 0) * 70ms); }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
@@ -191,12 +192,12 @@ body {
 .btn {
   border: 1px solid var(--border); background: transparent; color: var(--accent);
   padding: 0.5rem 1.1rem; border-radius: 999px; cursor: pointer; font-size: 0.85rem; font-weight: 500;
-  transition: background-color 200ms var(--ease), border-color 200ms var(--ease), box-shadow 200ms var(--ease), transform 120ms var(--ease);
+  transition: background-color 250ms var(--ease-out), border-color 250ms var(--ease-out), box-shadow 250ms var(--ease-out), transform 150ms var(--ease-out);
 }
-.btn:hover { background: var(--accent-weak); border-color: var(--accent); }
+.btn:hover { background: var(--accent-weak); border-color: var(--muted); transform: translateY(-1px); }
 .btn:active { transform: scale(0.96); }
 .btn-primary { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
-.btn-primary:hover { background: var(--accent); box-shadow: var(--shadow-hover); opacity: 0.92; }
+.btn-primary:hover { background: var(--accent); box-shadow: var(--shadow-hover); opacity: 0.9; }
 .btn-ghost { background: transparent; color: var(--muted); border-color: transparent; }
 .btn-ghost:hover { background: var(--chip-bg); color: var(--text); border-color: transparent; }
 .btn-danger { color: var(--danger); border-color: var(--danger); background: transparent; }
@@ -205,10 +206,8 @@ body {
 
 /* --- layout --- */
 main#app { padding: 1.25rem; max-width: 1300px; margin: 0 auto; }
-/* 탭을 옮길 때만 화면이 부드럽게 올라오며 나타남 (app.js가 .view-enter를 붙였다 뗌) */
-main#app.view-enter { animation: rise-in 0.5s var(--ease-out) both; }
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
-.section-header h2 { margin: 0; font-size: 1.15rem; font-weight: 500; }
+.section-header h2 { margin: 0; font-size: 1.45rem; font-weight: 600; letter-spacing: -0.02em; }
 
 .filters { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
 .filters select {
@@ -221,9 +220,9 @@ main#app.view-enter { animation: rise-in 0.5s var(--ease-out) both; }
 /* --- 대시보드 상단 위젯: 플립 시계 + 오늘 날씨 (말랑말랑한 감성용 장식) --- */
 .hero-widget {
   display: flex; align-items: center; gap: 1.6rem; flex-wrap: wrap;
-  background: linear-gradient(135deg, var(--accent-weak), var(--surface) 70%);
-  border: 1px solid var(--border); border-radius: var(--radius-lg);
-  padding: 1.1rem 1.4rem; margin-bottom: 1.2rem; box-shadow: var(--shadow);
+  background: linear-gradient(135deg, var(--brand-weak), var(--surface) 55%);
+  border: 1px solid var(--border-soft); border-radius: var(--radius-xl);
+  padding: 1.4rem 1.8rem; margin-bottom: 1.2rem; box-shadow: var(--shadow-float);
 }
 
 .flip-clock { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
@@ -337,15 +336,15 @@ main#app.view-enter { animation: rise-in 0.5s var(--ease-out) both; }
 .hero-stat {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: 0.2rem 0.6rem; min-width: 74px; cursor: pointer; border-radius: var(--radius-sm);
-  transition: background-color 150ms var(--ease);
+  transition: background-color 250ms var(--ease-out), transform 250ms var(--ease-out);
 }
-.hero-stat:hover { background: var(--accent-weak); }
-.hero-stat-num { font-size: 1.5rem; font-weight: 700; color: var(--accent); line-height: 1.1; }
+.hero-stat:hover { background: color-mix(in srgb, var(--surface) 70%, transparent); transform: translateY(-2px); }
+.hero-stat-num { font-size: 1.9rem; font-weight: 600; letter-spacing: -0.02em; color: var(--accent); line-height: 1.1; }
 .hero-stat-label { color: var(--muted); font-size: 0.66rem; text-align: center; margin-top: 0.2rem; line-height: 1.25; word-break: keep-all; }
 
 .dashboard-main { display: grid; grid-template-columns: 1fr 300px; gap: 1.2rem; align-items: start; margin-bottom: 1.5rem; }
 .dashboard-calendar-col .calendar { margin-bottom: 0; }
-.todo-panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.1rem; box-shadow: var(--shadow); }
+.todo-panel { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-xl); padding: 1.3rem; box-shadow: var(--shadow); }
 .todo-panel-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.8rem; }
 .todo-panel-header h3 { margin: 0; font-size: 1rem; font-weight: 500; }
 .todo-panel .card-list { max-height: 560px; overflow-y: auto; }
@@ -357,11 +356,12 @@ main#app.view-enter { animation: rise-in 0.5s var(--ease-out) both; }
 .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 0.9rem; }
 .mini-card {
   position: relative;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
-  padding: 0.8rem 1rem; box-shadow: var(--shadow); cursor: pointer;
-  transition: box-shadow 200ms var(--ease), transform 200ms var(--ease), border-color 200ms var(--ease);
+  background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-lg);
+  padding: 0.9rem 1.1rem; box-shadow: var(--shadow); cursor: pointer;
+  transition: box-shadow 350ms var(--ease-out), transform 350ms var(--ease-out);
 }
-.mini-card:hover { border-color: var(--accent); box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+.mini-card:hover { box-shadow: var(--shadow-float); transform: translateY(-3px); }
+.mini-card:active { transform: translateY(-1px) scale(0.99); }
 .mini-card .title { font-weight: 500; }
 .mini-card:has(.task-quick-actions) { padding-right: 2.5rem; }
 /* 카드 우측 상단에 떠 있는 작은 원형 아이콘 버튼 — 카드를 클릭해 수정 모달을 여는 동작과 섞이지 않도록 별도 자리에 둠 */
@@ -426,11 +426,12 @@ body.util-preview-scroll-lock { overflow: hidden; }
 .view-toggle { display: flex; gap: 0.3rem; }
 .view-toggle button { padding: 0.4rem 0.8rem; }
 
-.table-scroll { overflow-x: auto; border-radius: var(--radius); box-shadow: var(--shadow); }
+.table-scroll { overflow-x: auto; border-radius: var(--radius-lg); box-shadow: var(--shadow); border: 1px solid var(--border-soft); }
 table.data-table { width: 100%; border-collapse: collapse; background: var(--surface); }
 table.data-table th, table.data-table td { padding: 0.65rem 0.85rem; border-bottom: 1px solid var(--border); text-align: left; font-size: 0.88rem; white-space: nowrap; }
 table.data-table th { background: var(--surface-alt); color: var(--muted); font-weight: 500; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.03em; }
 table.data-table tr:last-child td { border-bottom: none; }
+table.data-table tr { transition: background-color 250ms var(--ease-out); }
 table.data-table tr:hover { background: var(--row-hover); }
 .status-select {
   padding: 0.4rem 0.6rem; border-radius: 999px; border: 1px solid var(--border);
@@ -447,16 +448,16 @@ select, option {
 }
 
 .board { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.9rem; }
-.board-col { background: var(--board-col-bg); border-radius: var(--radius-lg); padding: 0.8rem; min-height: 200px; }
+.board-col { background: var(--board-col-bg); border-radius: var(--radius-xl); padding: 1rem; min-height: 200px; }
 .board-col h3 { font-size: 0.85rem; font-weight: 500; margin: 0 0 0.6rem; color: var(--muted); display: flex; justify-content: space-between; }
 .board-completed-toggle { display: block; width: 100%; margin-bottom: 0.6rem; padding: 0.3rem; font-size: 0.74rem; }
 .board-card {
   position: relative;
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 0.65rem 0.75rem;
-  margin-bottom: 0.5rem; cursor: grab; box-shadow: var(--shadow);
-  transition: box-shadow 200ms var(--ease), transform 200ms var(--ease);
+  background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-lg); padding: 0.8rem 0.95rem;
+  margin-bottom: 0.6rem; cursor: grab; box-shadow: var(--shadow);
+  transition: box-shadow 350ms var(--ease-out), transform 350ms var(--ease-out);
 }
-.board-card:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+.board-card:hover { box-shadow: var(--shadow-float); transform: translateY(-3px); }
 .board-card.dragging { opacity: 0.4; }
 .board-col.drag-over { outline: 2px dashed var(--accent); outline-offset: -4px; }
 .board-card:has(.task-quick-actions) { padding-right: 2.3rem; }
@@ -572,7 +573,7 @@ select, option {
 .toast.toast-error { background: var(--danger); color: var(--on-accent); }
 
 /* --- calendar --- */
-.calendar { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.1rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; }
+.calendar { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-xl); padding: 1.3rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; }
 .calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
 .calendar-title { font-size: 1.35rem; font-weight: 600; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
@@ -582,7 +583,7 @@ select, option {
 .cal-week { position: relative; }
 .cal-week-cells { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
 .cal-week-bars { position: absolute; inset: 0; pointer-events: none; }
-.cal-cell { height: 132px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.25rem; background: var(--surface-alt); overflow: hidden; cursor: pointer; transition: border-color 150ms var(--ease); }
+.cal-cell { height: 132px; border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0.25rem; background: var(--surface-alt); overflow: hidden; cursor: pointer; transition: border-color 250ms var(--ease-out), background-color 250ms var(--ease-out); }
 .cal-cell[data-date]:hover { border-color: var(--accent); }
 .cal-cell.cal-empty { background: transparent; border-color: transparent; }
 .cal-cell.cal-today { border-color: var(--accent); background: var(--accent-weak); }
@@ -634,7 +635,7 @@ select, option {
   border-bottom: 2px solid var(--border); background: var(--surface-alt); color: var(--text);
 }
 .report-label input:focus { border-bottom-color: var(--accent); outline: none; }
-.report-sheet { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 1.3rem; box-shadow: var(--shadow); }
+.report-sheet { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-xl); padding: 1.3rem; box-shadow: var(--shadow); }
 .report-title { text-align: center; font-size: 1.25rem; font-weight: 700; margin: 0 0 0.5rem; }
 .report-period-line { text-align: center; font-size: 0.9rem; color: var(--muted); margin-bottom: 1.2rem; }
 
@@ -696,7 +697,7 @@ select, option {
 
 /* --- project detail --- */
 .detail-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
-.detail-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem; box-shadow: var(--shadow); margin-bottom: 1rem; }
+.detail-block { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-xl); padding: 1.3rem; box-shadow: var(--shadow); margin-bottom: 1rem; }
 .detail-block h4 { margin: 0 0 0.6rem; font-size: 0.9rem; font-weight: 500; color: var(--muted); }
 
 /* --- meeting summary flow (안건 → 논의 → 결정) --- */
@@ -715,9 +716,10 @@ select, option {
   display: flex; align-items: center; justify-content: center;
   transition: transform 150ms var(--ease);
 }
-.fab:hover { transform: scale(1.06); }
+.fab { transition: transform 300ms var(--ease-out), box-shadow 300ms var(--ease-out); }
+.fab:hover { transform: scale(1.08); box-shadow: var(--shadow-float); }
 .fab:active { transform: scale(0.94); }
-.fab.active { background: var(--surface); color: var(--accent); border: 1px solid var(--accent); }
+.fab.active { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
 
 /* 업무 리마인더 알림 켜기/끄기 버튼 — 켜져 있을 때만 강조색 */
 /* 켜짐/꺼짐이 이모지 하나 차이로는 잘 구분 안 될 수 있어서(🔔/🔕 — 플랫폼마다 슬래시가

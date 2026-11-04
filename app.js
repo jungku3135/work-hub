@@ -661,7 +661,6 @@ function heroWidgetHtml(d) {
     <div class="hero-widget">
       <div class="flip-clock">
         <div class="flip-date" id="flip-date">${todayISO()}</div>
-        <div class="flip-clock-divider"></div>
         <div class="flip-clock-units">
           <div class="flip-ampm" id="flip-ampm">--</div>
           ${flipUnitHtml("hour")}
@@ -811,10 +810,14 @@ async function renderDashboard() {
     ${heroWidgetHtml(d)}
     <div class="dashboard-main">
       <div class="dashboard-calendar-col">${calendarHtml()}</div>
-      <div class="dashboard-todo-col">${todoListHtml()}</div>
+      <div class="dashboard-todo-col">
+        ${todoListHtml()}
+        <div class="todo-panel recent-panel">
+          <div class="todo-panel-header"><h3>최근 회의록</h3></div>
+          <div class="card-list" id="recent-meetings"></div>
+        </div>
+      </div>
     </div>
-    <div class="section-header"><h2>최근 회의록</h2></div>
-    <div class="card-list" id="recent-meetings"></div>
   `;
   attachCalendarEvents();
   attachStatCardEvents();
@@ -825,7 +828,8 @@ async function renderDashboard() {
   if (!d.recentMeetings.length) {
     list.innerHTML = `<span class="muted">아직 회의록이 없습니다</span>`;
   } else {
-    d.recentMeetings.forEach((m) => list.appendChild(meetingMiniCard(m)));
+    // 오른쪽 열에 들어가므로 최근 3개만 (전체는 회의록 탭)
+    d.recentMeetings.slice(0, 3).forEach((m) => list.appendChild(meetingMiniCard(m)));
   }
 }
 

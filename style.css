@@ -159,7 +159,10 @@ body {
 }
 .topbar h1 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; margin: 0; white-space: nowrap; }
 
-.tabs { display: flex; gap: 0.25rem; overflow-x: auto; flex: 1; }
+.tabs { display: flex; gap: 0.25rem; overflow-x: auto; flex: 1; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tab-btn { display: inline-flex; align-items: center; gap: 0.3rem; }
+.tab-icon { display: none; }
 .tab-btn {
   border: none; background: transparent; padding: 0.5rem 1rem;
   border-radius: 999px; cursor: pointer; font-size: 0.9rem; font-weight: 500; color: var(--muted);
@@ -717,12 +720,32 @@ select, option {
 /* --- responsive --- */
 @media (max-width: 720px) {
   .board { grid-template-columns: 1fr; }
-  /* 좁은 화면: 알약(999px)이 3줄로 접히면 찌그러지므로 모서리를 줄이고, 탭은 한 줄 가로 스크롤로 */
-  .topbar { gap: 0.5rem; border-radius: var(--radius-xl); padding: 0.6rem 0.8rem; }
-  .topbar h1 { flex: 1; }
-  .tabs { flex: 1 1 100%; order: 3; }
-  .sync-box { margin-left: 0; }
-  #last-sync-label { display: none; }
+  /* 모바일: 상단은 제목 + 모드/동기화/테마 한 줄, 탭은 화면 아래 고정 내비게이션(아이콘 + 라벨) */
+  .topbar { gap: 0.5rem; padding: 0.5rem 0.7rem 0.5rem 1rem; flex-wrap: nowrap; }
+  .topbar h1 { flex: 1; font-size: 0.95rem; min-width: 0; }
+  .brand-team, #last-sync-label { display: none; }
+  .sync-box { margin-left: 0; gap: 0.3rem; }
+  .sync-box .btn { padding: 0.3rem 0.5rem; font-size: 0.75rem; }
+  .mode-indicator { padding: 0.3rem 0.6rem; font-size: 0.74rem; }
+  main#app { padding-bottom: 6rem; }
+  .tabs {
+    position: fixed; left: 0.6rem; right: 0.6rem; bottom: 0.6rem; z-index: 95; /* 알림 버튼(90)보다 위 — 안에 든 유틸리티 메뉴가 버튼에 가리지 않게 */ gap: 0; flex: none;
+    border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-float);
+    padding: 0.35rem; justify-content: space-between; overflow: visible;
+  }
+  /* 블러를 .tabs에 직접 걸면 fixed 자손(유틸리티 메뉴)의 기준이 .tabs가 되어 좌표가 틀어진다 → 가상 요소로 분리 */
+  .tabs::before {
+    content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+    background: var(--glass-bg); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  }
+  .tabs > .tab-btn, .nav-dropdown { flex: 1 1 0; min-width: 0; }
+  .nav-dropdown .tab-btn { width: 100%; }
+  .tab-btn { flex-direction: column; justify-content: center; gap: 0.15rem; padding: 0.45rem 0.1rem; font-size: 0.64rem; border-radius: var(--radius); }
+  .tab-icon { display: inline-flex; font-size: 1.25rem; }
+  .tab-chevron { display: none; }
+  .notif-fab { bottom: 5.6rem; right: 1rem; }
+  .toast { bottom: 5.6rem; }
+  .util-preview-restore { bottom: 9.5rem; }
   table.data-table thead { display: none; }
   table.data-table tr { display: block; border-bottom: 1px solid var(--border); padding: 0.5rem 0; }
   table.data-table td { display: flex; justify-content: space-between; border: none; padding: 0.25rem 0.75rem; white-space: normal; text-align: right; }
@@ -735,7 +758,6 @@ select, option {
   .cal-bar { height: 12px; line-height: 12px; }
   .cal-weekday { font-size: 0.65rem; }
   .report-sheet { font-size: 0.9rem; }
-  .notif-fab { bottom: 1rem; right: 1rem; }
   .util-preview-restore { right: 1rem; bottom: 9rem; max-width: calc(100vw - 2rem); }
   .util-preview-restore-body { max-width: 160px; }
 }

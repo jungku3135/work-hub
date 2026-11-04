@@ -2201,9 +2201,12 @@ function openUtilDropdown() {
   const btn = document.getElementById("util-dropdown-btn");
   const menu = document.getElementById("util-dropdown-menu");
   const rect = btn.getBoundingClientRect();
-  menu.style.top = `${rect.bottom + 6}px`;
-  menu.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
+  // html { zoom: 0.9 } 때문에 getBoundingClientRect(화면 px)와 fixed 요소의 top/right(CSS px)가 배율만큼 어긋난다 → 배율로 나눠 맞춘다
+  const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+  menu.style.right = `${Math.max(8, (window.innerWidth - rect.right) / zoom)}px`;
   menu.classList.remove("hidden");
+  // 버튼이 화면 아래쪽(모바일 하단 내비게이션)에 있으면 메뉴를 위로 펼친다
+  menu.style.top = rect.top > window.innerHeight / 2 ? `${(rect.top - 6) / zoom - menu.offsetHeight}px` : `${(rect.bottom + 6) / zoom}px`;
   btn.classList.add("dropdown-open");
   utilDropdownOpen = true;
 }

@@ -89,6 +89,11 @@ Notion DB(태스크/프로젝트/회의록)를 **Cloudflare Worker 프록시**�
 - 모션: 화면(탭/상세)이 바뀔 때만 `playViewEnter()`(app.js)가 카드/패널에 `.reveal`(14px 상승, 70ms 간격)을 붙임. 모달/드롭다운/탭 전환/호버 모두 같은 감속 곡선. `prefers-reduced-motion`이면 꺼짐.
 - 상단 바는 `backdrop-filter: blur(12px)` 알약. 표·달력은 밀도 유지(모서리/호버만 변경). 업무일지 출력물(xlsx/이미지/PDF)은 디자인과 무관.
 
+## 9-5. 로딩/대기 표시 · 검색
+- 요청이 250ms 넘게 걸리면 화면 맨 위에 진행 막대(`#busy-bar`, `api()` 래퍼가 in-flight 수를 셈). 버튼은 `withSubmitGuard`가 스피너(`.is-loading`)+문구, 태스크 빠른 변경 같은 작은 원형 버튼은 스피너만.
+- 첫 로딩·프로젝트 상세·회의록 상세는 스켈레톤(`skeletonHtml`), 로딩 실패는 안내 + `다시 시도`(`boot()` 재실행, 기술적 오류는 "자세히 보기"에 숨김).
+- 태스크/프로젝트/회의록 목록 상단 검색창(`state.search`, `matchesQuery`: 공백으로 나눈 단어가 모두 포함되면 일치). 입력 시 목록만 다시 그림.
+
 ## 9-4. 배율 (zoom 제거)
 - 예전 `html { zoom: 0.9 }`는 제거. 대신 `html { font-size: 90% }`(1rem = 14.4px)이고 style.css의 px 값은 전부 rem(=px/16)으로 변환(1px 테두리·미디어쿼리 제외). 같은 화면 크기를 유지하면서 zoom 부작용(확장 프로그램 오버레이 드래그 한계, getBoundingClientRect 어긋남)을 없앰.
 - 새 CSS를 쓸 땐 **px 대신 rem**(예: 15px → 0.9375rem)을 써야 화면 비율이 유지됨. 달력 막대 같은 JS 계산 값도 `px/16 rem`으로 출력.

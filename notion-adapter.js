@@ -630,14 +630,20 @@
   let peopleFetching = null;
   async function listPeople() {
     if (peopleCache) return peopleCache;
-    if (peopleFetching) return snapshot?.people && !peopleCache ? snapshot.people : peopleFetching;
+    if (peopleFetching) return snapshot?.people ?? peopleFetching;
     const stale = snapshot?.people;
-    peopleFetching = NC.listUsers().then((users) => {
-      peopleCache = users.filter((u) => u.type === "person").map((u) => ({ id: u.id, name: displayName(u.name ?? "(이름 없음)") }));
-      saveSnapshotPart("people", peopleCache);
-      if (stale && JSON.stringify(stale) !== JSON.stringify(peopleCache)) window.dispatchEvent(new Event("wh-data-refreshed"));
-      return peopleCache;
-    });
+    peopleFetching = NC.listUsers()
+      .then((users) => {
+        peopleCache = users.filter((u) => u.type === "person").map((u) => ({ id: u.id, name: displayName(u.name ?? "(이름 없음)") }));
+        saveSnapshotPart("people", peopleCache);
+        if (stale && JSON.stringify(stale) !== JSON.stringify(peopleCache)) window.dispatchEvent(new Event("wh-data-refreshed"));
+        return peopleCache;
+      })
+      .catch((err) => {
+        peopleFetching = null; // 실패 결과를 계속 들고 있으면 "다시 시도"를 눌러도 복구가 안 된다
+        if (stale) return stale; // 스냅샷이 있으면 그걸로 계속 보여줌
+        throw err;
+      });
     return stale ?? peopleFetching;
   }
 

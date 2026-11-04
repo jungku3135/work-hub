@@ -37,6 +37,7 @@ const UTIL_LINKS = [
 ];
 
 const state = {
+  search: { tasks: "", projects: "", meetings: "" }, // 목록 검색어 (탭별)
   tab: "dashboard",
   detailId: null,
   taskView: "board",
@@ -156,8 +157,21 @@ NC.setAuthPrompter(() => new Promise((resolve) => {
 }));
 
 // ---------- API (Notion 직통 어댑터로 위임 — notion-adapter.js) ----------
+// 요청이 진행 중인데 아무 표시가 없으면 눌렀는지조차 알 수 없다 → 250ms 넘게 걸리면 화면 맨 위에 진행 막대를 띄운다
+// (빠른 요청에는 깜빡임이 없도록 약간 늦춰서 표시)
+let inflightCount = 0;
+let busyTimer = null;
 async function api(method, url, body) {
-  return window.NotionAdapter.api(method, url, body);
+  const bar = document.getElementById("busy-bar");
+  if (++inflightCount === 1) busyTimer = setTimeout(() => bar?.classList.add("active"), 250);
+  try {
+    return await window.NotionAdapter.api(method, url, body);
+  } finally {
+    if (--inflightCount === 0) {
+      clearTimeout(busyTimer);
+      bar?.classList.remove("active");
+    }
+  }
 }
 
 function showToast(message, isError = false) {
@@ -174,11 +188,13 @@ async function withSubmitGuard(button, loadingText, fn) {
   if (button.disabled) return;
   const originalHtml = button.innerHTML; // 아이콘이 들어간 버튼도 그대로 복원
   button.disabled = true;
-  button.textContent = loadingText;
+  button.classList.add("is-loading");
+  button.textContent = button.classList.contains("task-quick-btn") ? "" : loadingText; // 작은 원형 버튼엔 문구가 안 들어가므로 스피너만
   try {
     await fn();
   } finally {
     button.disabled = false;
+    button.classList.remove("is-loading");
     button.innerHTML = originalHtml;
   }
 }
@@ -562,6 +578,7 @@ document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
 
 document.getElementById("sync-now-btn").addEventListener("click", async (e) => {
   e.target.disabled = true;
+  e.target.classList.add("is-loading");
   e.target.textContent = "동기화 중...";
   try {
     const result = await api("POST", "api/sync");
@@ -573,6 +590,7 @@ document.getElementById("sync-now-btn").addEventListener("click", async (e) => {
     showToast(err.message, true);
   } finally {
     e.target.disabled = false;
+    e.target.classList.remove("is-loading");
     e.target.textContent = "지금 동기화";
   }
 });
@@ -1444,6 +1462,24 @@ function shiftCalendarMonth(delta) {
 
 // ---------- tasks ----------
 
+// 검색: 공백으로 나눈 단어가 모두 (이름/메모/담당자/프로젝트 등) 어딘가에 들어 있으면 일치 (대소문자 무시)
+function matchesQuery(query, ...texts) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return true;
+  const hay = texts.filter(Boolean).join(" ").toLowerCase();
+  return words.every((w) => hay.includes(w));
+}
+function shownTasks() {
+  const q = state.search.tasks;
+  if (!q.trim()) return state.tasks;
+  return state.tasks.filter((t) =>
+    matchesQuery(q, t.name, t.note, t.status, t.workType, allAssigneeNamesText(t), t.projectIds.map(projectName).join(" "))
+  );
+}
+function searchInputHtml(id, value, placeholder) {
+  return `<label class="search-box">${icon("search")}<input type="search" id="${id}" value="${escapeHtml(value)}" placeholder="${placeholder}" autocomplete="off" /></label>`;
+}
+
 function renderTasks() {
   app.innerHTML = `
     <div class="section-header">
@@ -1457,6 +1493,7 @@ function renderTasks() {
       </div>
     </div>
     <div class="filters">
+      ${searchInputHtml("task-search", state.search.tasks, "태스크 검색 (이름·메모·담당자·프로젝트)")}
       <select id="filter-category"><option value="">전체 구분</option>${options(CATEGORY, state.filters.category)}</select>
       <select id="filter-project"><option value="">전체 프로젝트</option>${state.projects.map((p) => `<option value="${p.id}" ${p.id === state.filters.projectId ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}</select>
       <select id="filter-assignee"><option value="">전체 담당자</option>${state.people.map((p) => `<option value="${p.id}" ${p.id === state.filters.assigneeId ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}</select>
@@ -1473,10 +1510,17 @@ function renderTasks() {
   document.getElementById("filter-assignee").onchange = (e) => filterTasks("assigneeId", e.target.value);
 
   const content = document.getElementById("task-content");
-  content.innerHTML = state.taskView === "board" ? boardHtml() : listHtml();
-
-  if (state.taskView === "board") attachBoardEvents();
-  else attachListEvents();
+  const paint = () => {
+    content.innerHTML = state.taskView === "board" ? boardHtml() : listHtml();
+    if (state.taskView === "board") attachBoardEvents();
+    else attachListEvents();
+  };
+  paint();
+  // 입력할 때마다 목록만 다시 그린다 (전체를 다시 그리면 입력창 포커스가 사라짐)
+  document.getElementById("task-search").oninput = (e) => {
+    state.search.tasks = e.target.value;
+    paint();
+  };
 }
 
 async function filterTasks(key, value) {
@@ -1493,7 +1537,7 @@ function boardHtml() {
   const columns = ["할 일", "진행중", "완료"];
   return `<div class="board">${columns
     .map((status) => {
-      const all = state.tasks.filter((t) => t.status === status);
+      const all = shownTasks().filter((t) => t.status === status);
       const items =
         status === "완료" && !state.showAllCompleted
           ? [...all].sort((a, b) => new Date(b.lastEditedTime) - new Date(a.lastEditedTime)).slice(0, COMPLETED_DEFAULT_COUNT)
@@ -1565,11 +1609,12 @@ function attachBoardEvents() {
 }
 
 function listHtml() {
-  if (!state.tasks.length) return `<span class="muted">태스크가 없습니다</span>`;
+  const visible = shownTasks();
+  if (!visible.length) return `<span class="muted">${state.tasks.length ? "검색 결과가 없습니다" : "태스크가 없습니다"}</span>`;
   return `<div class="table-scroll"><table class="data-table">
     <thead><tr><th>이름</th><th>상태</th><th>구분</th><th>우선순위</th><th>마감일</th><th>담당자</th><th>프로젝트</th><th></th></tr></thead>
     <tbody>
-      ${state.tasks
+      ${visible
         .map(
           (t) => `<tr data-id="${t.id}">
         <td data-label="이름">${t.holidayWork ? `<span title="휴일 근무">${icon("building-2")} </span>` : ""}${t.recurrence && t.recurrence !== "없음" ? `<span title="반복: ${escapeHtml(t.recurrence)}">${icon("repeat")} </span>` : ""}${escapeHtml(t.name)}</td>
@@ -1807,34 +1852,45 @@ function openTaskModal(task) {
 function renderProjects() {
   app.innerHTML = `
     <div class="section-header"><h2>프로젝트</h2><button class="btn btn-primary btn-sm" id="add-project-btn">+ 프로젝트 추가</button></div>
+    <div class="filters">${searchInputHtml("project-search", state.search.projects, "프로젝트 검색 (이름·설명)")}</div>
     <div class="card-grid" id="project-list"></div>
   `;
   document.getElementById("add-project-btn").onclick = () => openProjectModal();
   const list = document.getElementById("project-list");
-  if (!state.projects.length) {
-    list.innerHTML = `<span class="muted">프로젝트가 없습니다</span>`;
-    return;
-  }
-  state.projects.forEach((p) => {
-    const card = document.createElement("div");
-    card.className = "mini-card";
-    card.innerHTML = `
-      <div class="title">${escapeHtml(p.name)}</div>
-      <div class="meta" style="margin-top:0.4rem; display:flex; gap:0.3rem; flex-wrap:wrap;">
-        ${tag(p.status, "status")} ${tag(p.category, "cat")} ${tag(p.priority, "priority")}
-        ${p.dueDate ? `<span class="tag">~${p.dueDate}</span>` : ""}
-      </div>
-    `;
-    card.onclick = () => {
-      state.tab = "project-detail";
-      state.detailId = p.id;
-      render();
-    };
-    list.appendChild(card);
-  });
+  const paint = () => {
+    list.innerHTML = "";
+    const shown = state.projects.filter((p) => matchesQuery(state.search.projects, p.name, p.description, p.status, allAssigneeNamesText(p)));
+    if (!shown.length) {
+      list.innerHTML = `<span class="muted">${state.projects.length ? "검색 결과가 없습니다" : "프로젝트가 없습니다"}</span>`;
+      return;
+    }
+    shown.forEach((p) => {
+      const card = document.createElement("div");
+      card.className = "mini-card";
+      card.innerHTML = `
+        <div class="title">${escapeHtml(p.name)}</div>
+        <div class="meta" style="margin-top:0.4rem; display:flex; gap:0.3rem; flex-wrap:wrap; align-items:center;">
+          ${tag(p.status, "status")} ${tag(p.category, "cat")} ${tag(p.priority, "priority")}
+          ${p.dueDate ? `<span class="tag">~${p.dueDate}</span>` : ""}
+        </div>
+      `;
+      card.onclick = () => {
+        state.tab = "project-detail";
+        state.detailId = p.id;
+        render();
+      };
+      list.appendChild(card);
+    });
+  };
+  paint();
+  document.getElementById("project-search").oninput = (e) => {
+    state.search.projects = e.target.value;
+    paint();
+  };
 }
 
 async function renderProjectDetail() {
+  app.innerHTML = skeletonHtml("detail"); // 프로젝트 상세는 Notion 조회를 기다려야 해서 그동안 틀을 보여준다
   const project = await api("GET", `api/projects/${state.detailId}`);
   app.innerHTML = `
     <button class="btn btn-sm" id="back-btn">${icon("arrow-left")} 프로젝트 목록</button>
@@ -2032,19 +2088,29 @@ function agendaItemsListHtml(items) {
 function renderMeetings() {
   app.innerHTML = `
     <div class="section-header"><h2>회의록</h2><button class="btn btn-primary btn-sm" id="add-meeting-btn">+ 회의록 작성</button></div>
+    <div class="filters">${searchInputHtml("meeting-search", state.search.meetings, "회의록 검색 (제목·참석자·유형)")}</div>
     <div class="card-list" id="meeting-list"></div>
   `;
   document.getElementById("add-meeting-btn").onclick = () => openMeetingModal();
   const list = document.getElementById("meeting-list");
-  if (!state.meetings.length) {
-    list.innerHTML = `<span class="muted">회의록이 없습니다</span>`;
-    return;
-  }
-  state.meetings.forEach((m) => list.appendChild(meetingMiniCard(m)));
+  const paint = () => {
+    list.innerHTML = "";
+    const shown = state.meetings.filter((m) => matchesQuery(state.search.meetings, m.title, m.date, m.meetingType, combinedNamesText(m.attendees, m.customAttendees)));
+    if (!shown.length) {
+      list.innerHTML = `<span class="muted">${state.meetings.length ? "검색 결과가 없습니다" : "회의록이 없습니다"}</span>`;
+      return;
+    }
+    shown.forEach((m) => list.appendChild(meetingMiniCard(m)));
+  };
+  paint();
+  document.getElementById("meeting-search").oninput = (e) => {
+    state.search.meetings = e.target.value;
+    paint();
+  };
 }
 
 async function openMeetingDetail(m) {
-  openModal(`<h3>${escapeHtml(m.title)}</h3><div class="muted">불러오는 중...</div>`, null, "modal-meeting");
+  openModal(`<h3>${escapeHtml(m.title)}</h3><div class="skel-block" style="margin-top:0.8rem"><div class="skel skel-line" style="width:40%"></div><div class="skel skel-card" style="height:6rem"></div><div class="skel skel-line" style="width:70%"></div></div>`, null, "modal-meeting");
   let content;
   try {
     content = await api("GET", `api/meetings/${m.id}/content`);
@@ -3109,16 +3175,40 @@ async function copyReportToClipboard() {
 
 // ---------- init ----------
 
-(async function init() {
-  app.innerHTML = `<div class="muted">불러오는 중...</div>`;
+// 화면 모양을 흉내 낸 회색 틀 — "불러오는 중..." 글자만 덩그러니 보이는 것보다 무엇이 올지 알 수 있고 덜 지루하다
+function skeletonHtml(kind = "dashboard") {
+  const lines = (n) => Array.from({ length: n }, (_, i) => `<div class="skel skel-line" style="width:${[92, 70, 82, 60][i % 4]}%"></div>`).join("");
+  if (kind === "list") return `<div class="skel-block"><div class="skel skel-title"></div>${[0, 1, 2, 3].map(() => `<div class="skel skel-card"></div>`).join("")}</div>`;
+  if (kind === "detail") return `<div class="skel-block"><div class="skel skel-title"></div><div class="skel skel-card" style="height:7rem"></div><div class="skel skel-card" style="height:11rem"></div></div>`;
+  return `<div class="skel-block"><div class="skel skel-hero"></div><div class="skel-grid"><div class="skel skel-calendar"></div><div class="skel skel-side">${lines(4)}</div></div></div>`;
+}
+
+function renderLoadError(err, retry) {
+  app.innerHTML = `
+    <div class="detail-block load-error">
+      <h3>데이터를 불러오지 못했어요</h3>
+      <p class="muted">인터넷 연결을 확인하고 다시 시도해 주세요. 계속 안 되면 잠시 뒤에 다시 열어 보세요.</p>
+      <button type="button" class="btn btn-primary" id="retry-load-btn">다시 시도</button>
+      <details class="load-error-detail"><summary class="muted">자세히 보기</summary><code>${escapeHtml(err?.message ?? String(err))}</code></details>
+    </div>`;
+  document.getElementById("retry-load-btn").onclick = retry;
+}
+
+async function boot() {
+  app.innerHTML = skeletonHtml("dashboard");
   try {
     await loadAll();
     render();
-    initNotifFab();
-    initModeIndicator();
-    showDailyTaskPopupIfNeeded();
-    startAutoSync();
+    if (!bootDone) {
+      bootDone = true;
+      initNotifFab();
+      initModeIndicator();
+      showDailyTaskPopupIfNeeded();
+      startAutoSync();
+    }
   } catch (err) {
-    app.innerHTML = `<div class="detail-block">초기 로딩에 실패했습니다: ${escapeHtml(err.message)}<br/><span class="muted">Notion 연결 설정을 확인하세요.</span></div>`;
+    renderLoadError(err, boot);
   }
-})();
+}
+let bootDone = false;
+boot();

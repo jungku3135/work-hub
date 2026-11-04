@@ -135,6 +135,56 @@ body {
   border-radius: 0.25rem;
 }
 
+/* --- 로딩 표시: 상단 진행 막대 / 버튼 스피너 / 스켈레톤 --- */
+.busy-bar { position: fixed; top: 0; left: 0; right: 0; height: 3px; z-index: 300; overflow: hidden; opacity: 0; pointer-events: none; transition: opacity 250ms var(--ease-out); }
+.busy-bar.active { opacity: 1; }
+.busy-bar::before {
+  content: ""; position: absolute; inset: 0; width: 40%;
+  background: linear-gradient(90deg, transparent, var(--brand), transparent);
+  animation: busy-slide 1.1s var(--ease) infinite;
+}
+@keyframes busy-slide { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+
+.btn.is-loading { pointer-events: none; opacity: 0.85; }
+.btn.is-loading::before {
+  content: ""; display: inline-block; width: 0.85em; height: 0.85em; margin-right: 0.45em; vertical-align: -0.1em;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+.task-quick-actions .btn.is-loading::before { margin: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.skel {
+  background: linear-gradient(90deg, var(--surface-alt) 25%, var(--surface) 50%, var(--surface-alt) 75%);
+  background-size: 200% 100%; animation: shimmer 1.4s linear infinite; border-radius: var(--radius);
+}
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+.skel-block { display: flex; flex-direction: column; gap: 1rem; }
+.skel-title { height: 1.8rem; width: 9rem; }
+.skel-card { height: 4.5rem; border-radius: var(--radius-lg); }
+.skel-line { height: 0.9rem; border-radius: 999px; }
+.skel-hero { height: 7.5rem; border-radius: var(--radius-xl); }
+.skel-grid { display: grid; grid-template-columns: 1fr 18.75rem; gap: 1.2rem; }
+.skel-calendar { height: 33rem; border-radius: var(--radius-xl); }
+.skel-side { height: 12rem; border-radius: var(--radius-xl); padding: 1.3rem; display: flex; flex-direction: column; gap: 0.8rem; }
+.skel-side .skel-line { background: var(--chip-bg); animation: none; }
+@media (max-width: 900px) { .skel-grid { grid-template-columns: 1fr; } .skel-calendar { height: 22rem; } }
+
+.load-error { max-width: 32rem; margin: 3rem auto; text-align: center; }
+.load-error h3 { margin: 0 0 0.5rem; font-size: 1.15rem; }
+.load-error .btn { margin: 0.6rem 0 1rem; }
+.load-error-detail { text-align: left; font-size: 0.75rem; }
+.load-error-detail code { display: block; margin-top: 0.4rem; padding: 0.6rem 0.8rem; background: var(--surface-alt); border-radius: var(--radius-sm); word-break: break-word; }
+
+/* --- 검색창 --- */
+.search-box {
+  display: flex; align-items: center; gap: 0.5rem; flex: 1 1 14rem; max-width: 24rem;
+  padding: 0.45rem 0.9rem; background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-full);
+  color: var(--muted); box-shadow: var(--shadow); transition: border-color 250ms var(--ease-out), box-shadow 250ms var(--ease-out);
+}
+.search-box:focus-within { border-color: var(--muted); box-shadow: var(--shadow-hover); color: var(--text); }
+.search-box input { flex: 1; min-width: 0; border: none; outline: none; background: transparent; color: var(--text); font: inherit; font-size: 0.85rem; }
+.search-box input::-webkit-search-cancel-button { cursor: pointer; }
+
 /* --- topbar: 화면 위에 떠 있는 블러 알약 바 --- */
 .topbar {
   display: flex;
@@ -732,6 +782,8 @@ select, option {
   .sync-box .btn { padding: 0.3rem 0.5rem; font-size: 0.75rem; }
   .mode-indicator { padding: 0.3rem 0.6rem; font-size: 0.74rem; }
   main#app { padding-bottom: 6rem; }
+  .tag { font-size: 0.78rem; }
+  .search-box { max-width: none; }
   .tabs {
     position: fixed; left: 0.6rem; right: 0.6rem; bottom: 0.6rem; z-index: 95; /* 알림 버튼(90)보다 위 — 안에 든 유틸리티 메뉴가 버튼에 가리지 않게 */ gap: 0; flex: none;
     border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow-float);
@@ -744,7 +796,7 @@ select, option {
   }
   .tabs > .tab-btn, .nav-dropdown { flex: 1 1 0; min-width: 0; }
   .nav-dropdown .tab-btn { width: 100%; }
-  .tab-btn { flex-direction: column; justify-content: center; gap: 0.15rem; padding: 0.45rem 0.1rem; font-size: 0.64rem; border-radius: var(--radius); }
+  .tab-btn { flex-direction: column; justify-content: center; gap: 0.15rem; padding: 0.45rem 0.1rem; font-size: 0.7rem; border-radius: var(--radius); }
   .tab-icon { display: inline-flex; font-size: 1.25rem; }
   .tab-chevron { display: none; }
   .notif-fab { bottom: 5.6rem; right: 1rem; }

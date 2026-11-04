@@ -566,15 +566,35 @@ function closeAuthModal() {
 
 // [data-tab] 한정: 유틸리티 드롭다운 버튼도 스타일 통일을 위해 tab-btn 클래스를 쓰지만
 // 실제 탭 전환 대상이 아니라서 여기 걸리면 안 됨 (data-tab 속성이 없음)
+// 활성 탭 배경(검은 알약)을 버튼마다 칠하지 않고 하나의 요소(#tab-indicator)가 탭 사이를 미끄러지듯 이동한다 (sliding pill)
+let tabIndicatorReady = false;
+function moveTabIndicator() {
+  const ind = document.getElementById("tab-indicator");
+  const active = document.querySelector(".tab-btn.active[data-tab]");
+  if (!ind || !active || !active.offsetWidth) return; // 아직 레이아웃 전이면 건너뜀
+  ind.style.width = `${active.offsetWidth}px`;
+  ind.style.height = `${active.offsetHeight}px`;
+  ind.style.transform = `translate(${active.offsetLeft}px, ${active.offsetTop}px)`;
+  if (!tabIndicatorReady) {
+    // 첫 배치는 이동 애니메이션 없이 제자리에 놓고, 그 다음부터 미끄러지게 한다
+    requestAnimationFrame(() => ind.classList.add("ready"));
+    tabIndicatorReady = true;
+  }
+}
+new ResizeObserver(moveTabIndicator).observe(document.querySelector(".tabs")); // 창 크기/모바일↔데스크톱 전환, 글꼴 로딩 후 폭 변화 대응
+document.fonts?.ready.then(moveTabIndicator);
+
 document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
   btn.addEventListener("click", () => {
     document.querySelectorAll(".tab-btn[data-tab]").forEach((b) => b.classList.remove("active"));
     btn.classList.add("active");
+    moveTabIndicator();
     state.tab = btn.dataset.tab;
     state.detailId = null;
     render();
   });
 });
+moveTabIndicator();
 
 document.getElementById("sync-now-btn").addEventListener("click", async (e) => {
   e.target.disabled = true;
@@ -626,6 +646,7 @@ function playViewEnter() {
 }
 
 function render() {
+  app.dataset.view = state.tab; // CSS에서 화면별 처리(대시보드는 텍스트 선택 방지)에 사용
   const viewKey = `${state.tab}:${state.detailId ?? ""}`;
   const viewChanged = viewKey !== lastViewKey;
   lastViewKey = viewKey;

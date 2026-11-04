@@ -220,7 +220,20 @@ body {
 }
 .tab-btn:hover { background: var(--accent-weak); color: var(--text); }
 .tab-btn:active { transform: scale(0.96); }
-.tab-btn.active { background: var(--accent); color: var(--on-accent); }
+.tab-btn { position: relative; z-index: 1; } /* 슬라이딩 알약(.tab-indicator) 위에 글자가 오도록 */
+.tab-btn.active { background: transparent; color: var(--on-accent); }
+.tabs { position: relative; }
+/* 활성 탭 배경: 하나의 알약이 탭 사이를 미끄러진다 (JS가 활성 버튼의 위치/크기를 translate·width·height로 지정) */
+.tab-indicator {
+  position: absolute; top: 0; left: 0; z-index: 0; width: 0; height: 0; border-radius: var(--ti-radius, 999px);
+  background: var(--accent); box-shadow: var(--shadow); pointer-events: none; opacity: 0;
+}
+.tab-indicator.ready {
+  opacity: 1;
+  transition: transform 0.45s var(--ease-out), width 0.45s var(--ease-out), height 0.45s var(--ease-out), opacity 0.2s;
+}
+/* 대시보드는 읽는 화면이라 드래그로 글자가 선택되는 게 거슬림 → 이 화면에서만 선택 방지 (입력창이 있는 다른 탭/모달은 그대로) */
+main#app[data-view="dashboard"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
 
 /* 유틸리티는 탭 전환 대신, 지금 보고 있는 화면은 그대로 둔 채 상단에서 드롭다운으로 바로 링크만 고르게 함 */
 .nav-dropdown { position: relative; display: inline-flex; }
@@ -801,6 +814,7 @@ select, option {
   }
   .tabs > .tab-btn, .nav-dropdown { flex: 1 1 0; min-width: 0; }
   .nav-dropdown .tab-btn { width: 100%; }
+  .tabs { --ti-radius: var(--radius); }
   .tab-btn { flex-direction: column; justify-content: center; gap: 0.15rem; padding: 0.45rem 0.1rem; font-size: 0.7rem; border-radius: var(--radius); }
   .tab-icon { display: inline-flex; font-size: 1.25rem; }
   .tab-chevron { display: none; }

@@ -1,6 +1,11 @@
 /* 태스크/프로젝트/회의록 속성 이름 매핑 — 팀 work-hub와 같은 스키마를 기본값으로 쓴다.
    Notion 데이터베이스의 속성 이름이 다르면 이 파일만 고치면 된다. */
 
+// 전역 const 이름이 다른 스크립트와 겹치지 않도록 IIFE로 감싸고 window.CONFIG로만 내보낸다
+(function () {
+// Cloudflare Worker(Notion 프록시) 주소 — notion-client.js / notion-adapter.js가 공통으로 사용
+const PROXY_ROOT = "https://work-hub-notion-proxy.work-hub-proxy.workers.dev";
+
 // 기존 시스템팀 work-hub가 쓰던 것과 동일한 데이터소스 ID (설정 화면 기본값으로 쓰임)
 const DEFAULT_DATA_SOURCES = {
   tasksDbId: "8981083f-4ed7-4122-90c0-f0f3bfe34d1d",
@@ -28,9 +33,10 @@ const TASK_PROPS = {
 };
 
 const TASK_STATUS_OPTIONS = ["할 일", "진행중", "완료", "계획 취소"];
+const CATEGORY_OPTIONS = ["개인", "팀"];
 const PRIORITY_OPTIONS = ["높음", "보통", "낮음"];
 const RECURRENCE_OPTIONS = ["없음", "매일", "매주", "매월"];
-const WORK_TYPE_OPTIONS = ["제품 개발/개선", "타부서 업무지원", "집진기 점검", "제품 설치", "휴가 및 사내 행사"];
+const WORK_TYPE_OPTIONS = ["없음", "제품 개발/개선", "타부서 업무지원", "집진기 점검", "제품 설치", "사장님 지시", "상무님 지시", "휴가 및 사내 행사"];
 
 const PROJECT_PROPS = {
   name: "이름",
@@ -63,10 +69,15 @@ const MEETING_TYPE_OPTIONS = ["주간회의", "킥오프", "리뷰", "의사결�
 // Notion 워크스페이스 닉네임을 화면 표시용 이름으로 바꿔주는 매핑 (팀 work-hub와 동일)
 const PEOPLE_NAME_OVERRIDES = { 정쿠: "강정규" };
 
+// 담당자 선택 목록에서 숨길 Notion 연동 계정
+const HIDDEN_PEOPLE_NAMES = ["Notion MCP", "Testonic"];
+
 window.CONFIG = {
+  PROXY_ROOT,
   DEFAULT_DATA_SOURCES,
-  TASK_PROPS, TASK_STATUS_OPTIONS, PRIORITY_OPTIONS, RECURRENCE_OPTIONS, WORK_TYPE_OPTIONS,
+  TASK_PROPS, TASK_STATUS_OPTIONS, CATEGORY_OPTIONS, PRIORITY_OPTIONS, RECURRENCE_OPTIONS, WORK_TYPE_OPTIONS,
   PROJECT_PROPS, PROJECT_STATUS_OPTIONS,
   MEETING_PROPS, MEETING_TYPE_OPTIONS,
-  PEOPLE_NAME_OVERRIDES,
+  PEOPLE_NAME_OVERRIDES, HIDDEN_PEOPLE_NAMES,
 };
+})();

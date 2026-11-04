@@ -1,13 +1,15 @@
-const TASK_STATUS = ["할 일", "진행중", "완료", "계획 취소"];
-const CATEGORY = ["개인", "팀"];
-const PRIORITY = ["높음", "보통", "낮음"];
+const {
+  TASK_STATUS_OPTIONS: TASK_STATUS,
+  CATEGORY_OPTIONS: CATEGORY,
+  PRIORITY_OPTIONS: PRIORITY,
+  RECURRENCE_OPTIONS: RECURRENCE,
+  WORK_TYPE_OPTIONS: WORK_TYPE,
+  PROJECT_STATUS_OPTIONS: PROJECT_STATUS,
+  MEETING_TYPE_OPTIONS: MEETING_TYPE,
+} = window.CONFIG; // 옵션 목록은 config.js 한 곳에서만 관리
 const priorityRank = (t) => { const i = PRIORITY.indexOf(t.priority); return i === -1 ? PRIORITY.length : i; };
-const RECURRENCE = ["없음", "매일", "매주", "매월"];
-const WORK_TYPE = ["없음", "제품 개발/개선", "타부서 업무지원", "집진기 점검", "제품 설치", "사장님 지시", "상무님 지시", "휴가 및 사내 행사"];
-const PROJECT_STATUS = ["계획", "진행중", "완료", "보류"];
-const MEETING_TYPE = ["주간회의", "킥오프", "리뷰", "의사결정", "기타"];
 
-const HIDDEN_PEOPLE_NAMES = new Set(["Notion MCP", "Testonic"]);
+const HIDDEN_PEOPLE_NAMES = new Set(window.CONFIG.HIDDEN_PEOPLE_NAMES);
 
 function visiblePeople() {
   return state.people.filter((p) => !HIDDEN_PEOPLE_NAMES.has(p.name));
@@ -28,7 +30,7 @@ const UTIL_LINKS = [
   // (우리 쪽에서 우회할 방법이 없음) — 미리보기 없이 그냥 새 탭으로 열리게 둔다
   { label: "AIR MAX 대시보드", url: "https://airmax.testonic.co.kr/", noPreview: true },
   { label: "AIR MAX 점검 대시보드", url: "https://testonicrnd.github.io/airmax-inspector/" },
-  { label: "3D Print Viewer", url: "https://192.168.0.29:8080/" },
+  { label: "3D Print Viewer", url: "https://192.168.0.76:8080/" },
   // http(평문) 사이트라 https인 이 앱 안에서 iframe으로 못 불러옴(Mixed Content, 브라우저가 강제 차단) —
   // 우리 쪽에서 우회할 방법이 없음. 미리보기 없이 그냥 새 탭으로 열리게 둔다
   { label: "Web Mail", url: "http://mail.testonic.co.kr/", noPreview: true },
@@ -51,6 +53,10 @@ const state = {
   calendarYear: new Date().getFullYear(),
   calendarMonthIndex: new Date().getMonth(),
   holidaysByYear: {}, // { [year]: { "YYYY-MM-DD": "홀리데이명" } }
+  reportMode: "daily", // "daily" | "weekly"
+  reportAssignee: "", // 담당자 이름 (빈 값 = 전체)
+  reportDate: todayISO(), // 일일 업무일지 기준일(작성일자)
+  reportWorkStyle: "내근", // 일일 업무일지 근무유형
   reportTeamName: "시스템팀",
   reportStart: defaultWeekRange().start,
   reportEnd: defaultWeekRange().end,
@@ -1115,25 +1121,20 @@ function openDayTaskList(dateKey) {
   openTaskListModal(`${dateKey} 태스크`, tasksForDay(dateKey), "이 날짜에 해당하는 태스크가 없습니다");
 }
 
-// ---------- 브라우저 알림 공통 (업무 리마인더 + 채팅) ----------
+// ---------- 브라우저 알림 공통 (업무 리마인더) ----------
 // 허브 탭이 열려있는 동안에만 동작함(진짜 백그라운드 푸시는 서비스 워커+푸시 서버가 필요해서
 // 이 앱의 규모에 비해 과함) — 팀이 평소 대시보드를 탭으로 켜두는 사용 패턴을 전제로 한다.
 // 브라우저 알림 권한(Notification.permission)은 한 번 "허용"하면 웹페이지가 다시 끌 수 없어서,
 // 그 위에 앱 자체의 켜기/끄기 스위치(localStorage)를 하나 더 둬서 사용자가 언제든 우리 쪽에서
-// 알림을 잠글 수 있게 한다 — 업무 리마인더(우측 하단 종 모양 버튼)와 채팅(채팅창 안 종 모양
-// 버튼)을 따로 켜고 끌 수 있음.
+// 알림을 잠글 수 있게 한다 — 우측 하단 종 모양 버튼으로 켜고 끈다.
 
 const NOTIF_TASKS_ENABLED_KEY = "workhub-notif-tasks-enabled";
-const NOTIF_CHAT_ENABLED_KEY = "workhub-notif-chat-enabled";
 
 function notifPermissionGranted() {
   return "Notification" in window && Notification.permission === "granted";
 }
 function isTaskNotifEnabled() {
   return notifPermissionGranted() && localStorage.getItem(NOTIF_TASKS_ENABLED_KEY) !== "0";
-}
-function isChatNotifEnabled() {
-  return notifPermissionGranted() && localStorage.getItem(NOTIF_CHAT_ENABLED_KEY) !== "0";
 }
 
 const DAILY_POPUP_SHOWN_KEY = "workhub-daily-popup-shown-date";
@@ -1254,7 +1255,7 @@ async function maybeShowModeSelectDialog() {
   );
 }
 
-// ---------- 업무 리마인더 알림 켜기/끄기 (채팅 버튼 바로 위 종 모양 버튼) ----------
+// ---------- 업무 리마인더 알림 켜기/끄기 (우측 하단 종 모양 버튼) ----------
 function updateNotifFabUI() {
   const fab = document.getElementById("notif-fab");
   if (!fab) return;
@@ -1294,73 +1295,6 @@ function initNotifFab() {
     updateNotifFabUI();
   });
   updateNotifFabUI();
-}
-
-// ---------- 채팅 알림 (채팅창 안 종 모양 버튼으로 별도 켜기/끄기) ----------
-function updateChatNotifBtnUI() {
-  const btn = document.getElementById("chat-notif-toggle-btn");
-  if (!btn) return;
-  if (!("Notification" in window)) {
-    btn.style.display = "none";
-    return;
-  }
-  const enabled = isChatNotifEnabled();
-  btn.textContent = enabled ? "🔔" : "🔕";
-  btn.classList.toggle("chat-notif-off", !enabled);
-  btn.title = enabled ? "채팅 알림 켜짐 (클릭해서 끄기)" : "채팅 알림 꺼짐 (클릭해서 켜기)";
-}
-
-function initChatNotifToggle() {
-  const btn = document.getElementById("chat-notif-toggle-btn");
-  if (!btn) return;
-  btn.addEventListener("click", async () => {
-    if (!("Notification" in window)) return;
-    if (Notification.permission === "denied") {
-      showToast("브라우저에서 알림이 차단되어 있습니다 — 주소창의 자물쇠 아이콘에서 이 사이트 알림을 허용해주세요", true);
-      return;
-    }
-    if (Notification.permission === "default") {
-      const perm = await Notification.requestPermission();
-      if (perm !== "granted") {
-        showToast("알림 권한이 허용되지 않았습니다", true);
-        updateChatNotifBtnUI();
-        return;
-      }
-      localStorage.setItem(NOTIF_CHAT_ENABLED_KEY, "1");
-      updateNotifFabUI(); // 권한을 처음 허용한 시점이면 업무 리마인더 버튼도 같이 갱신
-    } else {
-      const nowEnabled = !isChatNotifEnabled();
-      localStorage.setItem(NOTIF_CHAT_ENABLED_KEY, nowEnabled ? "1" : "0");
-      showToast(nowEnabled ? "채팅 알림이 켜졌습니다" : "채팅 알림이 꺼졌습니다");
-    }
-    updateChatNotifBtnUI();
-  });
-  updateChatNotifBtnUI();
-}
-
-// 채팅창을 닫아둔 동안에도 새 메시지가 오면 알림을 띄우기 위한 전용 폴링 — 패널이 열려있을 때
-// 쓰는 3초 간격 폴링과는 별개로, 훨씬 뜸하게(20초) 돌면서 새 메시지 유무만 확인한다.
-let lastNotifiedChatCount = null;
-async function backgroundChatNotifPoll() {
-  try {
-    const data = await api("GET", "api/chat/messages/global");
-    if (lastNotifiedChatCount === null) {
-      lastNotifiedChatCount = data.messages.length; // 처음 폴은 기준점만 세우고 알림은 안 띄움
-    } else if (data.messages.length > lastNotifiedChatCount) {
-      const newOnes = data.messages.slice(lastNotifiedChatCount).filter((m) => m.ip !== data.myIp);
-      if (newOnes.length && !chatPanelOpen && isChatNotifEnabled()) {
-        const last = newOnes[newOnes.length - 1];
-        const nick = data.nicknames[last.ip] || last.ip;
-        const preview = last.type === "image" ? "사진을 보냈습니다" : last.text;
-        new Notification(`💬 ${nick}`, { body: preview, tag: "workhub-chat" });
-      }
-      lastNotifiedChatCount = data.messages.length;
-    }
-  } catch {
-    // 조용히 실패, 다음 폴링에서 재시도
-  } finally {
-    setTimeout(backgroundChatNotifPoll, 20000);
-  }
 }
 
 // ---------- stat card list modals (대시보드 통계 카드 클릭 시) ----------
@@ -2335,39 +2269,75 @@ document.getElementById("util-preview-open-new").addEventListener("click", close
 function tasksInRange(start, end) {
   return state.allTasks.filter((t) => {
     const r = taskEffRange(t);
-    return r && r.start <= end && r.end >= start;
+    return r && r.start <= end && r.end >= start && taskHasAssignee(t, state.reportAssignee);
   });
 }
 
+// 담당자 선택 목록 — Notion 멤버(숨김 계정 제외) + 커스텀 담당자
+function reportAssigneeNames() {
+  const names = new Set([...visiblePeople().map((p) => p.name), ...state.customPeople]);
+  return [...names].sort((a, b) => a.localeCompare(b, "ko"));
+}
+
+function taskHasAssignee(t, name) {
+  return !name || combinedNames(t.assignees, t.customAssignees).includes(name);
+}
+
 function renderReport() {
+  const daily = state.reportMode === "daily";
+  const names = reportAssigneeNames();
   app.innerHTML = `
     <div class="section-header">
-      <h2>주간 업무일지</h2>
+      <h2>업무일지</h2>
       <div style="display:flex; gap:0.5rem;">
+        ${daily ? `<button class="btn btn-sm" id="save-report-xlsx-btn">📊 엑셀 저장</button>` : ""}
         <button class="btn btn-sm" id="copy-report-btn">📋 복사</button>
         <button class="btn btn-sm" id="save-report-img-btn">🖼 이미지 저장</button>
         <button class="btn btn-sm" id="save-report-pdf-btn">📄 PDF 저장</button>
       </div>
     </div>
+    <div class="report-mode-tabs">
+      <button type="button" class="btn btn-sm ${daily ? "btn-primary" : ""}" data-report-mode="daily">일일 업무일지</button>
+      <button type="button" class="btn btn-sm ${daily ? "" : "btn-primary"}" data-report-mode="weekly">주간 업무일지</button>
+    </div>
     <div class="filters">
       <label class="report-label">팀 이름 <input type="text" id="report-team" value="${escapeHtml(state.reportTeamName)}" /></label>
-      <label class="report-label">시작 <input type="date" id="report-start" value="${state.reportStart}" /></label>
-      <label class="report-label">종료 <input type="date" id="report-end" value="${state.reportEnd}" /></label>
+      <label class="report-label">담당자
+        <select id="report-assignee">
+          <option value="">전체</option>
+          ${names.map((n) => `<option value="${escapeHtml(n)}" ${n === state.reportAssignee ? "selected" : ""}>${escapeHtml(n)}</option>`).join("")}
+        </select>
+      </label>
+      ${
+        daily
+          ? `<label class="report-label">작성일자 <input type="date" id="report-date" value="${state.reportDate}" /></label>
+             <label class="report-label">근무유형
+               <select id="report-workstyle">${options(["내근", "외근", "외근/내근"], state.reportWorkStyle)}</select>
+             </label>`
+          : `<label class="report-label">시작 <input type="date" id="report-start" value="${state.reportStart}" /></label>
+             <label class="report-label">종료 <input type="date" id="report-end" value="${state.reportEnd}" /></label>`
+      }
     </div>
     <div id="report-output"></div>
   `;
-  document.getElementById("report-team").onchange = (e) => {
-    state.reportTeamName = e.target.value;
-    renderReportOutput();
+  app.querySelectorAll("[data-report-mode]").forEach((btn) => {
+    btn.onclick = () => {
+      state.reportMode = btn.dataset.reportMode;
+      renderReport();
+    };
+  });
+  const bind = (id, key) => {
+    const el = document.getElementById(id);
+    if (el) el.onchange = (e) => { state[key] = e.target.value; renderReportOutput(); };
   };
-  document.getElementById("report-start").onchange = (e) => {
-    state.reportStart = e.target.value;
-    renderReportOutput();
-  };
-  document.getElementById("report-end").onchange = (e) => {
-    state.reportEnd = e.target.value;
-    renderReportOutput();
-  };
+  bind("report-team", "reportTeamName");
+  bind("report-assignee", "reportAssignee");
+  bind("report-date", "reportDate");
+  bind("report-workstyle", "reportWorkStyle");
+  bind("report-start", "reportStart");
+  bind("report-end", "reportEnd");
+  const xlsxBtn = document.getElementById("save-report-xlsx-btn");
+  if (xlsxBtn) xlsxBtn.onclick = saveDailyReportAsXlsx;
   document.getElementById("copy-report-btn").onclick = copyReportToClipboard;
   document.getElementById("save-report-img-btn").onclick = saveReportAsImage;
   document.getElementById("save-report-pdf-btn").onclick = printReportAsPdf;
@@ -2555,7 +2525,8 @@ async function paginateReportRows(contentWidthPx, contentHeightPx) {
 
 async function saveReportAsImage() {
   const sheet = document.getElementById("report-sheet");
-  if (!sheet || !reportRowRecords.length) {
+  const daily = state.reportMode === "daily";
+  if (!sheet || (!daily && !reportRowRecords.length)) {
     showToast("저장할 내용이 없습니다", true);
     return;
   }
@@ -2563,6 +2534,14 @@ async function saveReportAsImage() {
   btn.disabled = true;
   btn.textContent = "생성 중...";
   try {
+    if (daily) {
+      const canvas = await withOffscreenHtml(dailySheetHtml({ forExport: true }), (el) => captureElementToCanvas(el, 2, getLightThemeVars()));
+      const link = document.createElement("a");
+      link.download = `${state.reportAssignee || state.reportTeamName}_일일업무계획_${state.reportDate}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+      return;
+    }
     const pageWidth = sheet.getBoundingClientRect().width;
     const { pageBodyHtmlList, totalPages } = await paginateReportRows(pageWidth, pageWidth * A4_HEIGHT_TO_WIDTH_RATIO);
 
@@ -2581,7 +2560,7 @@ async function saveReportAsImage() {
     canvases.forEach((canvas, i) => {
       const suffix = totalPages > 1 ? `_${i + 1}of${totalPages}` : "";
       const link = document.createElement("a");
-      link.download = `${state.reportTeamName}_주간업무보고서_${state.reportStart}${suffix}.png`;
+      link.download = `${state.reportAssignee || state.reportTeamName}_주간업무보고서_${state.reportStart}${suffix}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
     });
@@ -2602,6 +2581,13 @@ async function saveReportAsImage() {
 // 상세 내용도 뺀다 — 웹 화면과 이미지 저장에서는 그대로 다 보여주고, PDF에서만 타이틀/담당자/
 // 기간/진행률 위주로 간결하게 남긴다.
 async function printReportAsPdf() {
+  if (state.reportMode === "daily") {
+    const root = document.getElementById("print-report-root");
+    root.innerHTML = dailySheetHtml({ forExport: true });
+    window.addEventListener("afterprint", () => { root.innerHTML = ""; }, { once: true });
+    window.print();
+    return;
+  }
   const pdfTasks = reportRowRecords.map((r) => r.task).filter((t) => t.status !== "할 일");
   if (!pdfTasks.length) {
     showToast("저장할 내용이 없습니다", true);
@@ -2772,7 +2758,7 @@ function reportSheetShellHtml({ titleSuffix = "", widthPx, heightPx, bodyHtml, f
   return `<div class="report-sheet"${sizeStyle ? ` style="${sizeStyle}"` : ""}>
     ${exportFontStyle}
     <h2 class="report-title">${escapeHtml(state.reportTeamName)} 주간 업무 보고서${titleSuffix}</h2>
-    <div class="report-period-line">${formatDotDate(state.reportStart)} ~ ${formatDotDate(state.reportEnd)}</div>
+    <div class="report-period-line">${formatDotDate(state.reportStart)} ~ ${formatDotDate(state.reportEnd)}${state.reportAssignee ? ` · 담당자: ${escapeHtml(state.reportAssignee)}` : ""}</div>
     ${bodyHtml}
   </div>`;
 }
@@ -2780,7 +2766,8 @@ function reportSheetShellHtml({ titleSuffix = "", widthPx, heightPx, bodyHtml, f
 // 이미지/PDF 저장 시 페이지 나누기에 그대로 재사용하므로, 화면 렌더링에 쓴 레코드 배열을 기억해둔다.
 let reportRowRecords = [];
 
-function renderReportOutput() {
+async function renderReportOutput() {
+  if (state.reportMode === "daily") return renderDailyReportOutput();
   const output = document.getElementById("report-output");
   const tasks = tasksInRange(state.reportStart, state.reportEnd);
 
@@ -2794,6 +2781,253 @@ function renderReportOutput() {
   const bodyHtml = buildReportBodyHtml(reportRowRecords, new Set());
 
   output.innerHTML = reportSheetShellHtml({ bodyHtml });
+  output.firstElementChild.id = "report-sheet";
+}
+
+// ---------- 일일 업무일지 (일일 업무 계획서 양식: 전일 진행 결과 → 금일 업무 계획) ----------
+
+const DAILY_MIN_ROWS = 8; // 양식의 전일/금일 칸 수
+
+// dateKey보다 앞선 가장 가까운 영업일(주말·공휴일 제외)
+function previousWorkday(dateKey) {
+  let d = dateKey;
+  for (let i = 0; i < 14; i++) {
+    d = addDaysISO(d, -1);
+    if (!isOffDay(d)) return d;
+  }
+  return addDaysISO(dateKey, -1);
+}
+
+function weekdayKo(dateKey) {
+  const [y, m, d] = dateKey.split("-").map(Number);
+  return "일월화수목금토"[new Date(y, m - 1, d).getDay()];
+}
+
+function dailyTasksFor(dateKey) {
+  return tasksForDay(dateKey).filter((t) => t.status !== "계획 취소" && taskHasAssignee(t, state.reportAssignee));
+}
+
+function dailyRemark(t) {
+  if (t.status === "완료") return "완료";
+  if (t.status === "진행중") return t.progress !== null && t.progress !== undefined ? `진행중 ${t.progress}%` : "진행중";
+  return "";
+}
+
+function dailySectionRowsHtml(labelHtml, tasks) {
+  const rowCount = Math.max(DAILY_MIN_ROWS, tasks.length);
+  let html = "";
+  for (let i = 0; i < rowCount; i++) {
+    const t = tasks[i];
+    html += `<tr class="daily-row">
+      ${i === 0 ? `<th rowspan="${rowCount}" class="daily-section-label">${labelHtml}</th>` : ""}
+      <td colspan="2" class="daily-content">${t ? escapeHtml(t.name) : ""}</td>
+      <td class="daily-remark">${t ? escapeHtml(dailyRemark(t)) : ""}</td>
+    </tr>`;
+  }
+  return html;
+}
+
+function dailySheetHtml({ forExport = false } = {}) {
+  const date = state.reportDate;
+  const prev = previousWorkday(date);
+  const prevTasks = dailyTasksFor(prev);
+  const todayTasks = dailyTasksFor(date);
+  const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+  const widthStyle = forExport ? ` style="width:${680 / zoom}px"` : "";
+  const name = state.reportAssignee || `${state.reportTeamName} 전체`;
+  return `<div class="report-sheet daily-sheet"${widthStyle}>
+    <h2 class="report-title daily-title">일일 업무 계획</h2>
+    <table class="daily-table">
+      <colgroup><col style="width:15.6%"><col style="width:30.6%"><col style="width:15.6%"><col style="width:20.6%"></colgroup>
+      <tbody>
+        <tr class="daily-info"><th>작성일자</th><td>${date} (${weekdayKo(date)})</td><th>부서명</th><td>연구소/${escapeHtml(state.reportTeamName)}</td></tr>
+        <tr class="daily-info"><th>근무유형</th><td>${escapeHtml(state.reportWorkStyle)}</td><th>성명</th><td>${escapeHtml(name)}</td></tr>
+        <tr class="daily-head"><th></th><th colspan="2">업 무 내 용</th><th>비 고</th></tr>
+        ${dailySectionRowsHtml("전일 진행 결과", prevTasks)}
+        ${dailySectionRowsHtml("금일 업무 계획", todayTasks)}
+        <tr class="daily-etc"><th>기 타</th><td colspan="3"></td></tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+
+// ---------- 일일 업무 계획서 엑셀(.xlsx) 내보내기 ----------
+// templates/daily-plan-template.xlsx 는 바탕화면 "일일 업무 계획서(강정규).xlsx"의 한 시트를 그대로
+// 떼어내 값만 비운 파일이다 — 열 너비·행 높이·병합·테두리·로고·인쇄 설정이 원본과 완전히 같고,
+// 여기서는 그 안의 sheet1.xml 셀 값과 시트 이름(yy.mm.dd)만 바꿔서 다시 압축한다.
+// 외부 라이브러리 없이 처리하려고 템플릿은 무압축(STORED) zip으로 저장해 두었다.
+const XLSX_TEMPLATE_URL = "templates/daily-plan-template.xlsx";
+const XLSX_SLOT_ROWS = 8; // 전일 D13:D20, 금일 D21:D28
+
+const CRC_TABLE = (() => {
+  const t = new Uint32Array(256);
+  for (let n = 0; n < 256; n++) {
+    let c = n;
+    for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1;
+    t[n] = c >>> 0;
+  }
+  return t;
+})();
+function crc32(bytes) {
+  let c = 0xffffffff;
+  for (let i = 0; i < bytes.length; i++) c = CRC_TABLE[(c ^ bytes[i]) & 0xff] ^ (c >>> 8);
+  return (c ^ 0xffffffff) >>> 0;
+}
+
+// 무압축 zip → Map(파일명 → bytes)
+function readStoredZip(buf) {
+  const v = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+  let eocd = buf.length - 22;
+  while (eocd >= 0 && v.getUint32(eocd, true) !== 0x06054b50) eocd--;
+  if (eocd < 0) throw new Error("템플릿 파일 형식이 올바르지 않습니다");
+  const count = v.getUint16(eocd + 10, true);
+  let p = v.getUint32(eocd + 16, true);
+  const dec = new TextDecoder();
+  const files = new Map();
+  for (let i = 0; i < count; i++) {
+    const method = v.getUint16(p + 10, true);
+    const size = v.getUint32(p + 24, true);
+    const nameLen = v.getUint16(p + 28, true);
+    const extraLen = v.getUint16(p + 30, true);
+    const commentLen = v.getUint16(p + 32, true);
+    const localOffset = v.getUint32(p + 42, true);
+    const name = dec.decode(buf.subarray(p + 46, p + 46 + nameLen));
+    if (method !== 0) throw new Error("템플릿이 무압축 형식이 아닙니다");
+    const dataStart = localOffset + 30 + v.getUint16(localOffset + 26, true) + v.getUint16(localOffset + 28, true);
+    files.set(name, buf.slice(dataStart, dataStart + size));
+    p += 46 + nameLen + extraLen + commentLen;
+  }
+  return files;
+}
+
+function writeStoredZip(files) {
+  const enc = new TextEncoder();
+  const chunks = [];
+  const central = [];
+  let offset = 0;
+  for (const [name, data] of files) {
+    const nameBytes = enc.encode(name);
+    const crc = crc32(data);
+    const local = new DataView(new ArrayBuffer(30));
+    local.setUint32(0, 0x04034b50, true);
+    local.setUint16(4, 20, true);
+    local.setUint16(6, 0x0800, true); // UTF-8 파일명
+    local.setUint16(10, 0, true);
+    local.setUint16(12, 0x21, true); // 1980-01-01
+    local.setUint32(14, crc, true);
+    local.setUint32(18, data.length, true);
+    local.setUint32(22, data.length, true);
+    local.setUint16(26, nameBytes.length, true);
+    chunks.push(new Uint8Array(local.buffer), nameBytes, data);
+    const cen = new DataView(new ArrayBuffer(46));
+    cen.setUint32(0, 0x02014b50, true);
+    cen.setUint16(4, 20, true);
+    cen.setUint16(6, 20, true);
+    cen.setUint16(8, 0x0800, true);
+    cen.setUint16(14, 0x21, true);
+    cen.setUint32(16, crc, true);
+    cen.setUint32(20, data.length, true);
+    cen.setUint32(24, data.length, true);
+    cen.setUint16(28, nameBytes.length, true);
+    cen.setUint32(42, offset, true);
+    central.push(new Uint8Array(cen.buffer), nameBytes);
+    offset += 30 + nameBytes.length + data.length;
+  }
+  const centralSize = central.reduce((n, c) => n + c.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(8, files.size, true);
+  end.setUint16(10, files.size, true);
+  end.setUint32(12, centralSize, true);
+  end.setUint32(16, offset, true);
+  return new Blob([...chunks, ...central, new Uint8Array(end.buffer)], {
+    type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  });
+}
+
+function xmlEscape(str) {
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// 템플릿 시트 XML의 빈 셀(<c r="D13" s="22"/>)에 문자열 값을 채운다 (스타일 s는 그대로 유지)
+function setSheetCell(xml, ref, text) {
+  const re = new RegExp(`<c r="${ref}"( s="\\d+")?/>`);
+  if (!re.test(xml)) throw new Error(`템플릿에서 ${ref} 셀을 찾지 못했습니다`);
+  if (!text) return xml;
+  return xml.replace(re, (_, style) => `<c r="${ref}"${style || ""} t="inlineStr"><is><t xml:space="preserve">${xmlEscape(text)}</t></is></c>`);
+}
+
+// 8칸을 넘는 업무는 마지막 칸에 쉼표로 이어 붙인다 (양식의 병합/행 구조는 건드리지 않는다)
+function fitToSlots(tasks) {
+  const slots = tasks.slice(0, XLSX_SLOT_ROWS).map((t) => ({ text: t.name, remark: dailyRemark(t) }));
+  if (tasks.length > XLSX_SLOT_ROWS) {
+    const rest = tasks.slice(XLSX_SLOT_ROWS - 1);
+    slots[XLSX_SLOT_ROWS - 1] = { text: rest.map((t) => t.name).join(", "), remark: "" };
+  }
+  return slots;
+}
+
+async function buildDailyReportXlsx() {
+  const date = state.reportDate;
+  const res = await fetch(XLSX_TEMPLATE_URL);
+  if (!res.ok) throw new Error("엑셀 템플릿을 불러오지 못했습니다");
+  const files = readStoredZip(new Uint8Array(await res.arrayBuffer()));
+  const dec = new TextDecoder();
+  const enc = new TextEncoder();
+
+  const sheetName = `${date.slice(2, 4)}.${date.slice(5, 7)}.${date.slice(8, 10)}`; // 26.11.03
+  let wb = dec.decode(files.get("xl/workbook.xml")).replaceAll("__SHEET__", sheetName);
+  files.set("xl/workbook.xml", enc.encode(wb));
+
+  const prevTasks = dailyTasksFor(previousWorkday(date));
+  const todayTasks = dailyTasksFor(date);
+  let sheet = dec.decode(files.get("xl/worksheets/sheet1.xml"));
+  sheet = setSheetCell(sheet, "D9", `${date}(${weekdayKo(date)})`);
+  sheet = setSheetCell(sheet, "F9", `연구소/${state.reportTeamName}`);
+  sheet = setSheetCell(sheet, "D10", state.reportWorkStyle);
+  sheet = setSheetCell(sheet, "F10", state.reportAssignee);
+  [[13, prevTasks], [21, todayTasks]].forEach(([startRow, tasks]) => {
+    fitToSlots(tasks).forEach((slot, i) => {
+      sheet = setSheetCell(sheet, `D${startRow + i}`, slot.text);
+      sheet = setSheetCell(sheet, `F${startRow + i}`, slot.remark);
+    });
+  });
+  files.set("xl/worksheets/sheet1.xml", enc.encode(sheet));
+  return { blob: writeStoredZip(files), overflow: Math.max(prevTasks.length, todayTasks.length) > XLSX_SLOT_ROWS };
+}
+
+async function saveDailyReportAsXlsx() {
+  if (!state.reportAssignee) {
+    showToast("엑셀은 개인별 양식이라 담당자를 먼저 선택해주세요", true);
+    return;
+  }
+  const btn = document.getElementById("save-report-xlsx-btn");
+  btn.disabled = true;
+  btn.textContent = "생성 중...";
+  try {
+    await Promise.all([state.reportDate, addDaysISO(state.reportDate, -14)].map((d) => ensureHolidays(Number(d.slice(0, 4)))));
+    const { blob, overflow } = await buildDailyReportXlsx();
+    const link = document.createElement("a");
+    link.download = `일일 업무 계획서(${state.reportAssignee}).xlsx`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 10000);
+    showToast(overflow ? "업무가 8건을 넘어 마지막 칸에 이어서 적었습니다" : "엑셀 파일을 저장했습니다");
+  } catch (err) {
+    showToast(err.message, true);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "📊 엑셀 저장";
+  }
+}
+
+async function renderDailyReportOutput() {
+  const date = state.reportDate;
+  await Promise.all([date, addDaysISO(date, -14)].map((d) => ensureHolidays(Number(d.slice(0, 4)))));
+  const output = document.getElementById("report-output");
+  if (!output || state.reportMode !== "daily" || state.tab !== "report") return; // 기다리는 사이 화면이 바뀜
+  reportRowRecords = [];
+  output.innerHTML = dailySheetHtml();
   output.firstElementChild.id = "report-sheet";
 }
 

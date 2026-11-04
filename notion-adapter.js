@@ -16,7 +16,7 @@
 (function () {
   const NC = window.NotionClient;
   const CFG = window.CONFIG;
-  const PROXY_ROOT = "https://work-hub-notion-proxy.work-hub-proxy.workers.dev";
+  const PROXY_ROOT = CFG.PROXY_ROOT;
 
   // ---------- 커스텀 담당자/참석자 (Notion 텍스트 속성에 쉼표 구분으로 저장) ----------
 

@@ -530,14 +530,6 @@ select, option {
 .modal .checkbox-label { flex-direction: row; align-items: center; gap: 0.5rem; font-size: 0.88rem; color: var(--text); cursor: pointer; }
 .modal .checkbox-label input[type="checkbox"] { width: auto; min-width: auto; padding: 0; border: none; background: none; accent-color: var(--accent); }
 
-/* --- 채팅 이미지 확대 보기 --- */
-.img-lightbox {
-  position: fixed; inset: 0; background: rgba(0, 0, 0, 0.85); z-index: 300;
-  display: flex; align-items: center; justify-content: center; padding: 3vh 3vw; cursor: zoom-out;
-}
-.img-lightbox.hidden { display: none; }
-.img-lightbox img { max-width: 100%; max-height: 100%; border-radius: var(--radius-sm); box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); cursor: default; }
-
 /* --- toast --- */
 .toast {
   position: fixed; bottom: 1.25rem; left: 50%; transform: translateX(-50%);
@@ -584,6 +576,24 @@ select, option {
 /* 여러 날에 걸친 태스크 — 요일 칸 격자 위에 겹쳐서, 날짜 숫자 바로 아래부터 이어지는 막대로 표시 */
 .cal-bar { position: absolute; height: 15px; line-height: 15px; padding: 0 5px; margin-bottom: 0; box-shadow: var(--shadow); z-index: 2; pointer-events: auto; }
 .cal-more { font-size: 0.65rem; color: var(--muted); height: 15px; line-height: 15px; padding: 0 5px; }
+
+/* --- report (daily / weekly) --- */
+.report-mode-tabs { display: flex; gap: 0.4rem; margin-bottom: 0.8rem; }
+.report-label select {
+  padding: 0.5rem 0.7rem; border-radius: var(--radius-sm) var(--radius-sm) 0 0; border: none;
+  border-bottom: 2px solid var(--border); background: var(--surface-alt); color: var(--text);
+}
+/* 일일 업무 계획서 양식 (열 비율/행 높이는 원본 xlsx 기준: 15.6 / 30.6 / 15.6 / 20.6, 행 30px) */
+.daily-sheet { max-width: 680px; margin: 0 auto; }
+.daily-title { letter-spacing: 0.3em; margin-bottom: 1rem; }
+.daily-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 0.9rem; }
+.daily-table th, .daily-table td { border: 1px solid var(--text); padding: 0 0.5rem; text-align: center; vertical-align: middle; height: 30px; word-break: keep-all; }
+.daily-table th { background: var(--surface-alt); font-weight: 600; }
+.daily-table .daily-content { text-align: left; }
+.daily-table .daily-remark { font-size: 0.82rem; }
+.daily-table .daily-section-label { line-height: 1.4; }
+.daily-section-date { font-weight: 400; font-size: 0.78rem; color: var(--muted); margin-top: 0.2rem; }
+.daily-table .daily-etc td { height: 70px; }
 
 /* --- weekly report --- */
 .report-label { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--muted); }
@@ -664,8 +674,8 @@ select, option {
 .meeting-flow-text { white-space: normal; line-height: 1.5; }
 .meeting-flow-arrow { text-align: center; color: var(--muted); font-size: 1.1rem; padding: 0.2rem 0; }
 
-/* --- chat widget --- */
-.chat-fab {
+/* --- floating buttons --- */
+.fab {
   position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 90;
   width: 56px; height: 56px; border-radius: 999px; border: none;
   background: var(--accent); color: var(--on-accent); font-size: 1.4rem;
@@ -673,72 +683,15 @@ select, option {
   display: flex; align-items: center; justify-content: center;
   transition: transform 150ms var(--ease);
 }
-.chat-fab:hover { transform: scale(1.06); }
-.chat-fab:active { transform: scale(0.94); }
-.chat-fab.active { background: var(--surface); color: var(--accent); border: 1px solid var(--accent); }
+.fab:hover { transform: scale(1.06); }
+.fab:active { transform: scale(0.94); }
+.fab.active { background: var(--surface); color: var(--accent); border: 1px solid var(--accent); }
 
-/* 채팅 버튼 바로 위에 쌓아 올린 업무 리마인더 알림 켜기/끄기 버튼 — 켜져 있을 때만 강조색 */
+/* 업무 리마인더 알림 켜기/끄기 버튼 — 켜져 있을 때만 강조색 */
 /* 켜짐/꺼짐이 이모지 하나 차이로는 잘 구분 안 될 수 있어서(🔔/🔕 — 플랫폼마다 슬래시가
    잘 안 보이기도 함), 꺼졌을 때는 흑백+반투명으로 확실히 "죽어있는" 느낌을 준다 */
-.notif-fab { bottom: 5.5rem; background: var(--surface); color: var(--muted); border: 1px solid var(--border); box-shadow: var(--shadow); opacity: 0.55; filter: grayscale(1); }
+.notif-fab { bottom: 1.5rem; background: var(--surface); color: var(--muted); border: 1px solid var(--border); box-shadow: var(--shadow); opacity: 0.55; filter: grayscale(1); }
 .notif-fab.active { background: var(--accent); color: var(--on-accent); border-color: var(--accent); opacity: 1; filter: none; }
-.chat-panel-actions .chat-notif-off { opacity: 0.5; filter: grayscale(1); }
-
-.chat-panel {
-  position: fixed; bottom: 5.5rem; right: 1.5rem; z-index: 90;
-  width: min(92vw, 380px); height: min(70vh, 540px);
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  box-shadow: 0 12px 40px rgba(28, 27, 31, 0.25);
-  display: flex; flex-direction: column; overflow: hidden;
-}
-.chat-panel.hidden { display: none; }
-.chat-panel-header {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 0.8rem 1rem; border-bottom: 1px solid var(--border); font-weight: 500;
-}
-.chat-panel-title { display: flex; align-items: center; gap: 0.4rem; }
-.chat-panel-actions { display: flex; gap: 0.3rem; }
-.chat-nick-form { display: flex; gap: 0.4rem; padding: 0.6rem 1rem; border-bottom: 1px solid var(--border); }
-.chat-nick-form.hidden { display: none; }
-.chat-nick-form input {
-  flex: 1; padding: 0.4rem 0.6rem; border-radius: var(--radius-sm); border: 1px solid var(--border);
-  background: var(--surface-alt); color: var(--text);
-}
-.chat-messages { flex: 1; overflow-y: auto; padding: 0.9rem; display: flex; flex-direction: column; gap: 0.6rem; }
-.chat-bubble-wrap { display: flex; flex-direction: column; max-width: 78%; }
-.chat-bubble-wrap.mine { align-self: flex-end; align-items: flex-end; }
-.chat-bubble-wrap.theirs { align-self: flex-start; align-items: flex-start; }
-.chat-meta { font-size: 0.7rem; color: var(--muted); margin-bottom: 0.2rem; }
-.chat-date-sep { display: flex; align-items: center; justify-content: center; margin: 0.4rem 0; }
-.chat-date-sep span { font-size: 0.72rem; color: var(--muted); background: var(--chip-bg); padding: 0.2rem 0.7rem; border-radius: 999px; }
-.chat-date-sep-legacy span { background: transparent; border: 1px dashed var(--border); }
-.chat-bubble { padding: 0.5rem 0.75rem; border-radius: var(--radius); font-size: 0.85rem; line-height: 1.45; word-break: break-word; }
-.chat-bubble.mine { background: var(--accent); color: var(--on-accent); border-bottom-right-radius: 4px; }
-.chat-bubble.theirs { background: var(--chip-bg); color: var(--text); border-bottom-left-radius: 4px; }
-.chat-bubble.image { background: transparent; padding: 0; }
-.chat-bubble-img { max-width: 100%; max-height: 200px; border-radius: var(--radius-sm); display: block; cursor: zoom-in; }
-.chat-bubble-footer { display: flex; gap: 0.4rem; align-items: center; margin-top: 0.2rem; }
-.chat-time { font-size: 0.68rem; color: var(--muted); }
-.chat-read { font-size: 0.68rem; color: var(--accent); }
-.chat-typing { display: flex; align-items: center; gap: 0.4rem; padding: 0 0.9rem 0.5rem; font-size: 0.75rem; color: var(--muted); }
-.chat-typing.hidden { display: none; }
-.chat-typing-dots { display: inline-flex; gap: 0.2rem; }
-.chat-typing-dots span { width: 4px; height: 4px; border-radius: 50%; background: var(--muted); animation: chat-typing-bounce 1.2s infinite ease-in-out; }
-.chat-typing-dots span:nth-child(2) { animation-delay: 0.15s; }
-.chat-typing-dots span:nth-child(3) { animation-delay: 0.3s; }
-@keyframes chat-typing-bounce {
-  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
-  30% { transform: translateY(-3px); opacity: 1; }
-}
-.chat-img-preview { display: flex; align-items: center; gap: 0.5rem; padding: 0.5rem 1rem; border-top: 1px solid var(--border); }
-.chat-img-preview.hidden { display: none; }
-.chat-img-thumb { height: 40px; border-radius: var(--radius-sm); object-fit: cover; }
-.chat-send-area { display: flex; gap: 0.5rem; padding: 0.7rem 1rem; border-top: 1px solid var(--border); }
-.chat-send-area input {
-  flex: 1; padding: 0.5rem 0.8rem; border-radius: 999px; border: 1px solid var(--border);
-  background: var(--surface-alt); color: var(--text); font-family: inherit;
-}
-.chat-send-area input:focus { outline: none; border-color: var(--accent); }
 
 /* --- responsive --- */
 @media (max-width: 720px) {
@@ -756,9 +709,7 @@ select, option {
   .cal-bar { height: 12px; line-height: 12px; }
   .cal-weekday { font-size: 0.65rem; }
   .report-sheet { font-size: 0.9rem; }
-  .chat-panel { width: 94vw; height: 76vh; right: 3vw; bottom: 5rem; }
-  .chat-fab { bottom: 1rem; right: 1rem; }
-  .notif-fab { bottom: 5rem; right: 1rem; }
+  .notif-fab { bottom: 1rem; right: 1rem; }
   .util-preview-restore { right: 1rem; bottom: 9rem; max-width: calc(100vw - 2rem); }
   .util-preview-restore-body { max-width: 160px; }
 }

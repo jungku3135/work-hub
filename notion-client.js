@@ -7,7 +7,7 @@
    백엔드(src/notion/client.ts)와 동일한 버전/엔드포인트.
 ══════════════════════════════════════════════════════════════ */
 
-const PROXY_ROOT = "https://work-hub-notion-proxy.work-hub-proxy.workers.dev";
+const PROXY_ROOT = window.CONFIG.PROXY_ROOT; // config.js에서 정의 (스크립트 로드 순서상 먼저 로드돼야 함)
 const NOTION_API_BASE = `${PROXY_ROOT}/v1`;
 
 const SETTINGS_KEY = "wh-settings"; // { appSecret, tasksDbId, projectsDbId, meetingsDbId }

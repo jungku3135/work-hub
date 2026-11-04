@@ -829,7 +829,12 @@ async function renderDashboard() {
     list.innerHTML = `<span class="muted">아직 회의록이 없습니다</span>`;
   } else {
     // 오른쪽 열에 들어가므로 최근 3개만 (전체는 회의록 탭)
-    d.recentMeetings.slice(0, 3).forEach((m) => list.appendChild(meetingMiniCard(m)));
+    d.recentMeetings.slice(0, 3).forEach((m) => list.appendChild(meetingMiniCard(m, { compact: true })));
+    // 제목이 잘린 카드만 호버 시 전체 제목을 작게 띄운다 (잘렸는지는 그려진 뒤에야 알 수 있음)
+    list.querySelectorAll(".mini-card").forEach((card) => {
+      const title = card.querySelector(".title");
+      if (title.scrollWidth > title.clientWidth) card.classList.add("has-title-tip");
+    });
   }
 }
 
@@ -2016,15 +2021,25 @@ function openProjectModal(project) {
 
 // ---------- meetings ----------
 
-function meetingMiniCard(m) {
+function meetingMiniCard(m, { compact = false } = {}) {
   const card = document.createElement("div");
   card.className = "mini-card";
-  card.innerHTML = `
+  // compact(대시보드 "최근 회의록"): 좁은 열이라 제목은 한 줄(잘리면 호버로 전체 표시), 날짜·종류 / 참석자를 줄로 나눠 배치
+  card.innerHTML = compact
+    ? `
     <div class="title">${escapeHtml(m.title)}</div>
-    <div class="meta" style="margin-top:0.4rem; display:flex; gap:0.3rem; flex-wrap:wrap;">
+    <div class="meta meta-row">
+      <span class="tag">${m.date ?? "날짜 미정"}</span> ${tag(m.meetingType, "status")}
+    </div>
+    <div class="meta meta-row">${combinedTags(m.attendees, m.customAttendees)}</div>
+  `
+    : `
+    <div class="title">${escapeHtml(m.title)}</div>
+    <div class="meta" style="margin-top:0.4rem; display:flex; gap:0.3rem; flex-wrap:wrap; align-items:center;">
       <span class="tag">${m.date ?? "날짜 미정"}</span> ${tag(m.meetingType, "status")} ${combinedTags(m.attendees, m.customAttendees)}
     </div>
   `;
+  if (compact) card.dataset.fullTitle = m.title;
   card.onclick = () => openMeetingDetail(m);
   return card;
 }

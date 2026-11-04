@@ -385,6 +385,13 @@ main#app { padding: 1.25rem; max-width: 81.25rem; margin: 0 auto; }
 .todo-panel .card-list { max-height: 35rem; overflow-y: auto; }
 .dashboard-todo-col { display: flex; flex-direction: column; gap: 1.2rem; }
 .recent-panel .mini-card .title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } /* 좁은 열이라 제목은 한 줄로 */
+.recent-panel .meta-row { margin-top: 0.4rem; display: flex; gap: 0.3rem; flex-wrap: wrap; align-items: center; }
+/* 제목이 잘린 카드: 제목에 마우스를 올리면 전체 제목이 아래에 작은 말풍선으로 뜬다 (터치 기기엔 호버가 없으니 카드를 누르면 열리는 상세에서 확인) */
+.recent-panel .mini-card.has-title-tip:has(.title:hover)::after {
+  content: attr(data-full-title); position: absolute; left: 0.6rem; right: 0.6rem; top: 2.3rem; z-index: 5;
+  padding: 0.4rem 0.7rem; border-radius: var(--radius-sm); background: var(--toast-bg); color: var(--toast-text);
+  font-size: 0.78rem; line-height: 1.4; box-shadow: var(--shadow-float); pointer-events: none; animation: menu-in 0.18s var(--ease-out) both;
+}
 .dashboard-todo-col #todo-list { max-height: 15rem; } /* 할 일이 많아도 아래 "최근 회의록"이 화면 안에 보이게 */
 @media (max-width: 900px) {
   .dashboard-main { grid-template-columns: 1fr; }

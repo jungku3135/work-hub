@@ -284,20 +284,11 @@ main#app { padding: 1.25rem; max-width: 81.25rem; margin: 0 auto; }
   padding: 1.4rem 1.8rem; margin-bottom: 1.2rem; box-shadow: var(--shadow-float);
 }
 
-.flip-clock { display: flex; flex-direction: column; align-items: center; gap: 0.5rem; }
-.flip-clock-units { display: flex; align-items: center; gap: 0.4rem; }
-/* 원래 사진처럼 나무 받침대로 했더니 앱 전체의 보라색 톤과 안 어울려서, 같은 accent 색 계열의
-   메탈릭한 받침대로 교체 (은은한 하이라이트가 흐르는 금속 느낌) */
-.flip-clock-base {
-  width: 88%; height: 0.5625rem; border-radius: 0.3125rem;
-  background: linear-gradient(100deg,
-    color-mix(in srgb, var(--accent) 35%, #26232e),
-    color-mix(in srgb, var(--accent) 65%, #16141c) 40%,
-    color-mix(in srgb, var(--accent) 85%, #3a3648) 52%,
-    color-mix(in srgb, var(--accent) 65%, #16141c) 64%,
-    color-mix(in srgb, var(--accent) 35%, #26232e));
-  box-shadow: 0 0.1875rem 0.3125rem rgba(0, 0, 0, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-}
+.flip-clock { display: flex; flex-direction: column; align-items: stretch; gap: 0.6rem; }
+.flip-clock-units { display: flex; align-items: center; justify-content: center; gap: 0.4rem; }
+/* 위: 오늘 날짜 / 가는 구분선 / 아래: 현재 시각 — 시계 받침대였던 막대를 위아래를 깔끔하게 나누는 선으로 사용 */
+.flip-date { text-align: center; font-size: 0.95rem; font-weight: 600; letter-spacing: 0.06em; font-variant-numeric: tabular-nums; color: var(--text); }
+.flip-clock-divider { height: 1px; background: color-mix(in srgb, var(--text) 18%, transparent); border-radius: 1px; }
 .flip-unit { position: relative; width: 3.75rem; height: 3.5rem; perspective: 17.5rem; font-variant-numeric: tabular-nums; filter: drop-shadow(0 0.1875rem 0.25rem rgba(0, 0, 0, 0.28)); transition: filter 200ms var(--ease); }
 .flip-unit.is-flipping { filter: drop-shadow(0 0.4375rem 0.5625rem rgba(0, 0, 0, 0.4)); }
 .flip-unit-sm { width: 2.625rem; height: 2.5rem; }

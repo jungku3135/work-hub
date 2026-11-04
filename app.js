@@ -660,6 +660,8 @@ function heroWidgetHtml(d) {
   return `
     <div class="hero-widget">
       <div class="flip-clock">
+        <div class="flip-date" id="flip-date">${todayISO()}</div>
+        <div class="flip-clock-divider"></div>
         <div class="flip-clock-units">
           <div class="flip-ampm" id="flip-ampm">--</div>
           ${flipUnitHtml("hour")}
@@ -668,7 +670,6 @@ function heroWidgetHtml(d) {
           <div class="flip-colon">:</div>
           ${flipUnitHtml("second", "sm")}
         </div>
-        <div class="flip-clock-base"></div>
       </div>
       <div class="weather-widget">
         <div class="weather-icon" id="weather-icon"></div>
@@ -758,6 +759,8 @@ function tickFlipClock() {
   updateFlipUnit(secondRoot, String(now.getSeconds()).padStart(2, "0"));
   const ampmEl = document.getElementById("flip-ampm");
   if (ampmEl) ampmEl.textContent = ampm;
+  const dateEl = document.getElementById("flip-date");
+  if (dateEl && dateEl.textContent !== todayISO()) dateEl.textContent = todayISO(); // 자정을 넘기면 날짜도 바뀜
 }
 
 function initFlipClock() {

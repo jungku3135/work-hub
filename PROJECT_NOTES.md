@@ -89,6 +89,12 @@ Notion DB(태스크/프로젝트/회의록)를 **Cloudflare Worker 프록시**�
 - 모션: 화면(탭/상세)이 바뀔 때만 `playViewEnter()`(app.js)가 카드/패널에 `.reveal`(14px 상승, 70ms 간격)을 붙임. 모달/드롭다운/탭 전환/호버 모두 같은 감속 곡선. `prefers-reduced-motion`이면 꺼짐.
 - 상단 바는 `backdrop-filter: blur(12px)` 알약. 표·달력은 밀도 유지(모서리/호버만 변경). 업무일지 출력물(xlsx/이미지/PDF)은 디자인과 무관.
 
+## 9-2. 아이콘
+- 이모지는 전부 **Lucide**(ISC) 인라인 SVG로 교체. `icons.js`의 `ICONS` 맵 + `icon(name)` 헬퍼(템플릿 문자열에서 `${icon("pin")}`), 정적 HTML은 `<span data-icon="house"></span>`(자동 치환). `currentColor`라 테마/버튼 색을 따라가고, width/height 속성이 박혀 있어 이미지·PDF 저장에서도 유지됨.
+- 새 아이콘 추가: https://lucide.dev 에서 이름 확인 → `https://unpkg.com/lucide-static@latest/icons/<이름>.svg` 의 내부 path들을 `ICONS`에 추가.
+- 날씨 위젯도 Lucide(`sun/moon/cloud-*`)로 교체, CSS 도형 애니메이션은 제거(부드러운 위아래 움직임만 유지).
+- 남겨둔 이모지: OS 알림 제목 ⏰(이미지 불가), `notion-adapter.js`의 옛 회의록 헤딩 매칭 문자열(데이터 호환).
+
 ## 10. 작업 시 팁
 - 속성명/옵션 변경 → `config.js` (+ app.js 상수도 확인).
 - 새 API 라우트 → `notion-adapter.js`의 `api()` switch에 추가, 쓰기면 캐시 무효화 대상 확인.

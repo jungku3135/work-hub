@@ -4,12 +4,12 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>Work Hub</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>%F0%9F%8F%A0</text></svg>" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%23121211%22 stroke-width=%222%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22><path d=%22M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8%22/><path d=%22M3 10a2 2 0 0 1 .709-1.528l7-6a2 2 0 0 1 2.582 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z%22/></svg>" />
 <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 <header class="topbar">
-  <h1>🏠 시스템팀 Work Hub</h1>
+  <h1><span data-icon="house"></span> 시스템팀 Work Hub</h1>
   <nav class="tabs">
     <button class="tab-btn active" data-tab="dashboard">대시보드</button>
     <button class="tab-btn" data-tab="tasks">태스크</button>
@@ -17,15 +17,15 @@
     <button class="tab-btn" data-tab="meetings">회의록</button>
     <button class="tab-btn" data-tab="report">업무일지</button>
     <div class="nav-dropdown" id="util-dropdown">
-      <button class="tab-btn" id="util-dropdown-btn" type="button">유틸리티 ▾</button>
+      <button class="tab-btn" id="util-dropdown-btn" type="button">유틸리티 <span data-icon="chevron-down"></span></button>
       <div class="nav-dropdown-menu hidden" id="util-dropdown-menu"></div>
     </div>
   </nav>
   <div class="sync-box">
-    <button id="mode-indicator" class="mode-indicator" type="button" title="모드 확인 중...">👀 뷰어 모드</button>
+    <button id="mode-indicator" class="mode-indicator" type="button" title="모드 확인 중..."><span data-icon="eye"></span> 뷰어 모드</button>
     <span id="last-sync-label" class="muted">-</span>
     <button id="sync-now-btn" class="btn btn-ghost">지금 동기화</button>
-    <button id="theme-toggle-btn" class="btn btn-ghost" title="다크모드 전환">🌙</button>
+    <button id="theme-toggle-btn" class="btn btn-ghost" title="다크모드 전환"><span data-icon="moon"></span></button>
   </div>
 </header>
 
@@ -35,9 +35,9 @@
   <div class="util-preview-header">
     <span class="util-preview-title" id="util-preview-title"></span>
     <div class="util-preview-actions">
-      <a id="util-preview-open-new" class="btn btn-sm btn-ghost" href="#" target="_blank" rel="noopener noreferrer" title="새 창에서 열기">⧉ 새 창</a>
-      <button id="util-preview-minimize" class="btn btn-sm btn-ghost" title="최소화">─</button>
-      <button id="util-preview-close" class="btn btn-sm btn-ghost" title="닫기">✕</button>
+      <a id="util-preview-open-new" class="btn btn-sm btn-ghost" href="#" target="_blank" rel="noopener noreferrer" title="새 창에서 열기"><span data-icon="external-link"></span> 새 창</a>
+      <button id="util-preview-minimize" class="btn btn-sm btn-ghost" title="최소화"><span data-icon="minus"></span></button>
+      <button id="util-preview-close" class="btn btn-sm btn-ghost" title="닫기"><span data-icon="x"></span></button>
     </div>
   </div>
   <div class="util-preview-body">
@@ -46,19 +46,20 @@
 </div>
 <div id="util-preview-restore" class="util-preview-restore hidden">
   <span id="util-preview-restore-body" class="util-preview-restore-body" title="미리보기 다시 열기">
-    <span class="util-preview-restore-icon">🔗</span>
+    <span class="util-preview-restore-icon" data-icon="link"></span>
     <span id="util-preview-restore-label" class="util-preview-restore-label"></span>
   </span>
-  <button id="util-preview-restore-close" class="util-preview-restore-close" title="닫기">✕</button>
+  <button id="util-preview-restore-close" class="util-preview-restore-close" title="닫기"><span data-icon="x"></span></button>
 </div>
 
-<button id="notif-fab" class="fab notif-fab" title="업무 리마인더 알림">🔔</button>
+<button id="notif-fab" class="fab notif-fab" title="업무 리마인더 알림"><span data-icon="bell"></span></button>
 
 <div id="modal-root" class="modal-root hidden"></div>
 <div id="auth-modal-root" class="modal-root hidden"></div>
 <div id="toast" class="toast hidden"></div>
 <div id="print-report-root"></div>
 
+<script src="icons.js"></script>
 <script src="config.js"></script>
 <script src="notion-client.js"></script>
 <script src="notion-adapter.js"></script>

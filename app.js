@@ -22,7 +22,7 @@ function selectableProjectsFor(currentProjectId) {
   return state.projects.filter((p) => p.id === currentProjectId || (p.status !== "완료" && p.status !== "보류"));
 }
 
-const UTIL_LINK_ICON = "🔗";
+const UTIL_LINK_ICON = icon("link");
 const UTIL_LINKS = [
   { label: "모뎀 설치 현황 구글 시트", url: "https://docs.google.com/spreadsheets/d/1tw3OLjKuFf9Udyb5YIOet-cgUXHdyvTAGh5t2hE8zvE/edit?gid=59190594#gid=59190594" },
   { label: "집진기 점검 기록표 구글 시트", url: "https://docs.google.com/spreadsheets/d/1aZ6HAkcB1YRiLyXIq_ZzKYi4-iE_7E-hApki0PIzXMs/edit?usp=sharing" },
@@ -79,7 +79,7 @@ function currentEffectiveTheme() {
 
 function updateThemeButton() {
   const btn = document.getElementById("theme-toggle-btn");
-  if (btn) btn.textContent = currentEffectiveTheme() === "dark" ? "☀️" : "🌙";
+  if (btn) btn.innerHTML = icon(currentEffectiveTheme() === "dark" ? "sun" : "moon");
 }
 
 function applyTheme(theme) {
@@ -111,7 +111,7 @@ function getAuthToken() {
 // 확인을 누르면 Worker에 비밀번호가 맞는지 먼저 물어보고, 틀리면 창을 닫지 않고 그 자리에서 알려준다.
 NC.setAuthPrompter(() => new Promise((resolve) => {
   openAuthModal(
-    `<h3>🔒 비밀번호 확인</h3>
+    `<h3>${icon("lock")} 비밀번호 확인</h3>
     <p class="muted" style="margin-top:-0.4rem;">작성·수정·삭제하려면 비밀번호를 입력하세요. 한 번 입력하면 이 브라우저에서는 다시 묻지 않습니다.</p>
     <form id="auth-form">
       <div class="field"><input type="password" name="password" placeholder="비밀번호" required /></div>
@@ -172,14 +172,14 @@ function showToast(message, isError = false) {
 // 바꾸고 비활성화했다가 끝나면(성공/실패 상관없이) 원래대로 되돌린다.
 async function withSubmitGuard(button, loadingText, fn) {
   if (button.disabled) return;
-  const originalText = button.textContent;
+  const originalHtml = button.innerHTML; // 아이콘이 들어간 버튼도 그대로 복원
   button.disabled = true;
   button.textContent = loadingText;
   try {
     await fn();
   } finally {
     button.disabled = false;
-    button.textContent = originalText;
+    button.innerHTML = originalHtml;
   }
 }
 
@@ -190,10 +190,10 @@ async function withSubmitGuard(button, loadingText, fn) {
 // 할 일 -> 완료로 한 번에 건너뛰지 않도록, 한 단계씩만(할 일→진행중, 진행중→완료) 버튼을 보여준다.
 function taskQuickActionsHtml(t) {
   if (t.status === "할 일") {
-    return `<div class="task-quick-actions"><button type="button" class="btn task-quick-btn" data-task-id="${t.id}" data-status="진행중" title="진행중으로 변경">▶</button></div>`;
+    return `<div class="task-quick-actions"><button type="button" class="btn task-quick-btn" data-task-id="${t.id}" data-status="진행중" title="진행중으로 변경">${icon("play")}</button></div>`;
   }
   if (t.status === "진행중") {
-    return `<div class="task-quick-actions"><button type="button" class="btn btn-primary task-quick-btn" data-task-id="${t.id}" data-status="완료" title="완료 처리">✓</button></div>`;
+    return `<div class="task-quick-actions"><button type="button" class="btn btn-primary task-quick-btn" data-task-id="${t.id}" data-status="완료" title="완료 처리">${icon("check")}</button></div>`;
   }
   return "";
 }
@@ -728,44 +728,16 @@ function initFlipClock() {
 
 // 날씨 상태별로 CSS만으로 움직이는 귀여운 아이콘을 그린다 (외부 gif 의존 없음)
 function weatherIconHtml(category, isDay) {
-  const sun = (small) =>
-    `<div class="w-sun${small ? " w-sun-sm" : ""}"><div class="w-sun-core"></div>${Array.from({ length: 8 })
-      .map((_, i) => `<div class="w-sun-ray" style="--i:${i}"></div>`)
-      .join("")}</div>`;
-  const moon = (small) => `<div class="w-moon${small ? " w-moon-sm" : ""}"></div>`;
-  // 박스섀도우로 구름 모양을 흉내내면 뭉개져 보여서, 알아보기 쉽게 SVG 3덩이+받침 모양으로 직접 그린다
-  const cloud = (cls = "") =>
-    `<svg class="w-cloud ${cls}" viewBox="0 0 64 40" xmlns="http://www.w3.org/2000/svg">
-      <circle cx="20" cy="18" r="10"/><circle cx="33" cy="13" r="13"/><circle cx="46" cy="19" r="9"/>
-      <rect x="10" y="18" width="44" height="16" rx="8"/>
-    </svg>`;
-  const rain = () =>
-    Array.from({ length: 4 })
-      .map((_, i) => `<div class="w-rain-drop" style="--i:${i}"></div>`)
-      .join("");
-  const snow = () =>
-    Array.from({ length: 4 })
-      .map((_, i) => `<div class="w-snow-flake" style="--i:${i}"></div>`)
-      .join("");
-
-  switch (category) {
-    case "clear":
-      return isDay ? sun(false) : moon(false);
-    case "partly-cloudy":
-      return `${isDay ? sun(true) : moon(true)}${cloud()}`;
-    case "cloudy":
-      return `${cloud("w-cloud-back")}${cloud("w-cloud-big")}`;
-    case "rain":
-      return `${cloud()}${rain()}`;
-    case "snow":
-      return `${cloud()}${snow()}`;
-    case "thunder":
-      return `${cloud("w-cloud-dark")}<div class="w-bolt"></div>${rain()}`;
-    case "fog":
-      return [0, 1, 2].map((i) => `<div class="w-fog-line" style="top:${16 + i * 12}px; animation-delay:${i * 0.4}s"></div>`).join("");
-    default:
-      return cloud();
-  }
+  const names = {
+    clear: isDay ? "sun" : "moon",
+    "partly-cloudy": isDay ? "cloud-sun" : "cloud-moon",
+    cloudy: "cloud",
+    rain: "cloud-rain",
+    snow: "cloud-snow",
+    thunder: "cloud-lightning",
+    fog: "cloud-fog",
+  };
+  return icon(names[category] ?? "cloud");
 }
 
 async function loadWeatherWidget() {
@@ -921,7 +893,7 @@ function calItemModifierClasses(t) {
 }
 
 function calItemLabel(t) {
-  return `${t.holidayWork ? "🏢 " : ""}${escapeHtml(t.name)}`;
+  return `${t.holidayWork ? `${icon("building-2")} ` : ""}${escapeHtml(t.name)}`;
 }
 
 function calItemTitle(t) {
@@ -1221,7 +1193,7 @@ function showDailyTaskPopupIfNeeded() {
   if (localStorage.getItem(DAILY_POPUP_SHOWN_KEY) === today) return;
   localStorage.setItem(DAILY_POPUP_SHOWN_KEY, today);
 
-  openTaskListModal(`📋 오늘의 업무 (${today})`, tasks, "오늘 예정된 태스크가 없습니다", maybeShowModeSelectDialog);
+  openTaskListModal(`오늘의 업무 (${today})`, tasks, "오늘 예정된 태스크가 없습니다", maybeShowModeSelectDialog);
 }
 
 // ---------- 사용자 모드 / 뷰어 모드 ----------
@@ -1236,7 +1208,7 @@ async function updateModeIndicator() {
   const el = document.getElementById("mode-indicator");
   if (!el) return false;
   const valid = await checkAuthValid();
-  el.textContent = valid ? "🔑 사용자 모드" : "👀 뷰어 모드";
+  el.innerHTML = valid ? `${icon("key-round")} 사용자 모드` : `${icon("eye")} 뷰어 모드`;
   el.classList.toggle("mode-user", valid);
   el.classList.toggle("mode-viewer", !valid);
   el.title = valid
@@ -1271,11 +1243,11 @@ async function maybeShowModeSelectDialog() {
   const valid = await updateModeIndicator();
   if (valid) return;
   openModal(
-    `<h3>🔑 모드 선택</h3>
+    `<h3>${icon("key-round")} 모드 선택</h3>
     <p class="muted" style="margin-top:-0.4rem;">비밀번호를 입력하면 작성·수정·삭제가 가능한 사용자 모드로 시작해요. 건너뛰면 보기 전용 뷰어 모드로 시작합니다.</p>
     <div class="modal-actions"><span></span><div class="modal-actions-right">
-      <button type="button" class="btn" id="mode-viewer-btn">👀 뷰어 모드로 계속</button>
-      <button type="button" class="btn btn-primary" id="mode-user-btn">🔑 사용자 모드로 전환</button>
+      <button type="button" class="btn" id="mode-viewer-btn">${icon("eye")} 뷰어 모드로 계속</button>
+      <button type="button" class="btn btn-primary" id="mode-user-btn">${icon("key-round")} 사용자 모드로 전환</button>
     </div></div>`,
     (modal) => {
       modal.querySelector("#mode-viewer-btn").onclick = () => closeModal();
@@ -1298,7 +1270,7 @@ function updateNotifFabUI() {
     return;
   }
   const enabled = isTaskNotifEnabled();
-  fab.textContent = enabled ? "🔔" : "🔕";
+  fab.innerHTML = icon(enabled ? "bell" : "bell-off");
   fab.classList.toggle("active", enabled);
   fab.title = enabled ? "업무 리마인더 알림 켜짐 (클릭해서 끄기)" : "업무 리마인더 알림 꺼짐 (클릭해서 켜기)";
 }
@@ -1515,8 +1487,8 @@ function boardCardHtml(t) {
       ${tag(t.priority, "priority")}
       ${tag(t.category, "cat")}
       ${t.dueDate ? `<span class="tag">~${formatTaskDate(t.dueDate)}</span>` : ""}
-      ${t.holidayWork ? `<span class="tag tag-holiday-work">🏢 휴일 근무</span>` : ""}
-      ${t.recurrence && t.recurrence !== "없음" ? `<span class="tag tag-recurrence">🔁 ${escapeHtml(t.recurrence)}</span>` : ""}
+      ${t.holidayWork ? `<span class="tag tag-holiday-work">${icon("building-2")} 휴일 근무</span>` : ""}
+      ${t.recurrence && t.recurrence !== "없음" ? `<span class="tag tag-recurrence">${icon("repeat")} ${escapeHtml(t.recurrence)}</span>` : ""}
     </div>
     <div class="meta">${allAssigneeTags(t)}</div>
     ${taskQuickActionsHtml(t)}
@@ -1566,7 +1538,7 @@ function listHtml() {
       ${state.tasks
         .map(
           (t) => `<tr data-id="${t.id}">
-        <td data-label="이름">${t.holidayWork ? '<span title="휴일 근무">🏢 </span>' : ""}${t.recurrence && t.recurrence !== "없음" ? `<span title="반복: ${escapeHtml(t.recurrence)}">🔁 </span>` : ""}${escapeHtml(t.name)}</td>
+        <td data-label="이름">${t.holidayWork ? `<span title="휴일 근무">${icon("building-2")} </span>` : ""}${t.recurrence && t.recurrence !== "없음" ? `<span title="반복: ${escapeHtml(t.recurrence)}">${icon("repeat")} </span>` : ""}${escapeHtml(t.name)}</td>
         <td data-label="상태"><select class="status-select" data-id="${t.id}">${options(TASK_STATUS, t.status)}</select></td>
         <td data-label="구분">${tag(t.category, "cat")}</td>
         <td data-label="우선순위">${tag(t.priority, "priority")}</td>
@@ -1831,7 +1803,7 @@ function renderProjects() {
 async function renderProjectDetail() {
   const project = await api("GET", `api/projects/${state.detailId}`);
   app.innerHTML = `
-    <button class="btn btn-sm" id="back-btn">← 프로젝트 목록</button>
+    <button class="btn btn-sm" id="back-btn">${icon("arrow-left")} 프로젝트 목록</button>
     <div class="detail-header">
       <div>
         <h2 style="margin-bottom:0.3rem;">${escapeHtml(project.name)}</h2>
@@ -1969,9 +1941,9 @@ function meetingTabsHtml(content) {
   const tabPanes = items
     .map((item, i) => {
       const steps = [
-        { icon: "📌", label: "안건", text: item.agenda },
-        { icon: "💬", label: "논의", text: item.discussion },
-        { icon: "✅", label: "결정", text: item.decision },
+        { icon: icon("pin"), label: "안건", text: item.agenda },
+        { icon: icon("message-square"), label: "논의", text: item.discussion },
+        { icon: icon("circle-check"), label: "결정", text: item.decision },
       ];
       return `
         <div class="meeting-tab-pane ${i === 0 ? "active" : ""}" data-tab-pane="${i}">
@@ -1979,7 +1951,7 @@ function meetingTabsHtml(content) {
             ${steps
               .map(
                 (s, si) => `
-              ${si > 0 ? `<div class="meeting-flow-arrow">↓</div>` : ""}
+              ${si > 0 ? `<div class="meeting-flow-arrow">${icon("arrow-down")}</div>` : ""}
               <div class="meeting-flow-step">
                 <div class="meeting-flow-label">${s.icon} ${s.label}</div>
                 <div class="meeting-flow-text">${s.text ? escapeHtml(s.text).replace(/\n/g, "<br/>") : '<span class="muted">-</span>'}</div>
@@ -2011,9 +1983,9 @@ function agendaItemFormHtml(item, index) {
         <span class="agenda-item-num">안건 ${index + 1}</span>
         <button type="button" class="btn btn-sm btn-danger agenda-item-remove">삭제</button>
       </div>
-      <div class="field"><label>📌 안건</label><textarea class="agenda-item-agenda" rows="2">${escapeHtml(item.agenda ?? "")}</textarea></div>
-      <div class="field"><label>💬 논의</label><textarea class="agenda-item-discussion" rows="3">${escapeHtml(item.discussion ?? "")}</textarea></div>
-      <div class="field"><label>✅ 결정</label><textarea class="agenda-item-decision" rows="3">${escapeHtml(item.decision ?? "")}</textarea></div>
+      <div class="field"><label>${icon("pin")} 안건</label><textarea class="agenda-item-agenda" rows="2">${escapeHtml(item.agenda ?? "")}</textarea></div>
+      <div class="field"><label>${icon("message-square")} 논의</label><textarea class="agenda-item-discussion" rows="3">${escapeHtml(item.discussion ?? "")}</textarea></div>
+      <div class="field"><label>${icon("circle-check")} 결정</label><textarea class="agenda-item-decision" rows="3">${escapeHtml(item.decision ?? "")}</textarea></div>
     </div>
   `;
 }
@@ -2197,7 +2169,7 @@ function buildUtilDropdownMenu() {
     card.innerHTML = `
       <span class="util-icon">${UTIL_LINK_ICON}</span>
       <span class="title">${escapeHtml(link.label)}</span>
-      <span class="util-arrow">↗</span>
+      <span class="util-arrow">${icon("arrow-up-right")}</span>
     `;
     // 그냥 클릭하면 새 페이지로 넘어가지 않고 떠 있는 미리보기 패널로 보여줌.
     // Ctrl/Cmd/휠클릭 등 "새 탭으로 열기" 의도가 명확한 경우나, iframe 삽입 자체를 막아둔
@@ -2324,10 +2296,10 @@ function renderReport() {
     <div class="section-header">
       <h2>업무일지</h2>
       <div style="display:flex; gap:0.5rem;">
-        ${daily ? `<button class="btn btn-sm" id="save-report-xlsx-btn">📊 엑셀 저장</button>` : ""}
-        <button class="btn btn-sm" id="copy-report-btn">📋 복사</button>
-        <button class="btn btn-sm" id="save-report-img-btn">🖼 이미지 저장</button>
-        <button class="btn btn-sm" id="save-report-pdf-btn">📄 PDF 저장</button>
+        ${daily ? `<button class="btn btn-sm" id="save-report-xlsx-btn">${icon("file-spreadsheet")} 엑셀 저장</button>` : ""}
+        <button class="btn btn-sm" id="copy-report-btn">${icon("clipboard-list")} 복사</button>
+        <button class="btn btn-sm" id="save-report-img-btn">${icon("image")} 이미지 저장</button>
+        <button class="btn btn-sm" id="save-report-pdf-btn">${icon("file-text")} PDF 저장</button>
       </div>
     </div>
     <div class="report-mode-tabs">
@@ -2603,7 +2575,7 @@ async function saveReportAsImage() {
     showToast(err.message, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = "🖼 이미지 저장";
+    btn.innerHTML = `${icon("image")} 이미지 저장`;
   }
 }
 
@@ -2641,7 +2613,7 @@ async function printReportAsPdf() {
     showToast(err.message, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = "📄 PDF 저장";
+    btn.innerHTML = `${icon("file-text")} PDF 저장`;
   }
 }
 
@@ -2703,7 +2675,7 @@ function buildReportRowRecords(tasksIn) {
 function checklistReportHtml(t) {
   if (!t.checklist || !t.checklist.length) return "";
   const items = t.checklist
-    .map((i) => `<li>${i.checked ? "☑" : "☐"} ${escapeHtml(i.text)}</li>`)
+    .map((i) => `<li>${icon(i.checked ? "square-check" : "square")} ${escapeHtml(i.text)}</li>`)
     .join("");
   return `<ul class="report-checklist">${items}</ul>`;
 }
@@ -3051,7 +3023,7 @@ async function saveDailyReportAsXlsx() {
     showToast(err.message, true);
   } finally {
     btn.disabled = false;
-    btn.textContent = "📊 엑셀 저장";
+    btn.innerHTML = `${icon("file-spreadsheet")} 엑셀 저장`;
   }
 }
 

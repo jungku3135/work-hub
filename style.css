@@ -144,15 +144,18 @@ body {
   margin: 0.75rem auto 0.5rem;
   width: min(calc(100% - 1.5rem), 1400px);
   padding: 0.5rem 0.6rem 0.5rem 1.25rem;
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: blur(12px);
-  backdrop-filter: blur(12px);
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
   box-shadow: var(--shadow-float);
   position: sticky;
   top: 0.6rem;
   z-index: 10;
+}
+/* 블러를 .topbar 자체에 걸면 position:fixed 자손(유틸리티 드롭다운)의 기준이 뷰포트가 아니라 .topbar가 되어
+   메뉴 위치가 틀어진다 — 배경+블러는 뒤에 깔리는 가상 요소로 분리 */
+.topbar::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; border-radius: inherit;
+  background: var(--glass-bg); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
 }
 .topbar h1 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; margin: 0; white-space: nowrap; }
 

@@ -565,6 +565,10 @@ select, option {
 /* --- calendar --- */
 .calendar { background: var(--surface); border: 1px solid var(--border-soft); border-radius: var(--radius-xl); padding: 1.3rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; }
 .calendar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.6rem; }
+.calendar-title { display: flex; align-items: center; gap: 0.6rem; }
+/* 월 이동 버튼: 터치하기 편한 원형 2.5rem(≈36px) + 아이콘 */
+.cal-nav-btn { width: 2.5rem; height: 2.5rem; padding: 0; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; font-size: 1.25rem; color: var(--text); }
+.cal-today-btn { font-weight: 500; }
 .calendar-title { font-size: 1.35rem; font-weight: 600; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.25rem; }
 .cal-grid-header { margin-bottom: 0.25rem; }

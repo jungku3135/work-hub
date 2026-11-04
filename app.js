@@ -1100,9 +1100,12 @@ function calendarHtml() {
   return `
     <div class="calendar">
       <div class="calendar-header">
-        <button class="btn btn-sm" id="cal-prev">‹</button>
-        <div class="calendar-title">${year}년 ${month + 1}월</div>
-        <button class="btn btn-sm" id="cal-next">›</button>
+        <button class="btn cal-nav-btn" id="cal-prev" aria-label="이전 달" title="이전 달">${icon("chevron-left")}</button>
+        <div class="calendar-title">
+          ${year}년 ${month + 1}월
+          ${year === new Date().getFullYear() && month === new Date().getMonth() ? "" : `<button class="btn btn-sm cal-today-btn" id="cal-today" type="button">오늘</button>`}
+        </div>
+        <button class="btn cal-nav-btn" id="cal-next" aria-label="다음 달" title="다음 달">${icon("chevron-right")}</button>
       </div>
       <div class="cal-grid cal-grid-header">${["일", "월", "화", "수", "목", "금", "토"].map((w) => `<div class="cal-weekday">${w}</div>`).join("")}</div>
       <div class="cal-weeks">${weeksHtml}</div>
@@ -1119,6 +1122,15 @@ function attachCalendarEvents() {
     shiftCalendarMonth(1);
     await renderDashboard();
   };
+  const todayBtn = document.getElementById("cal-today");
+  if (todayBtn) {
+    todayBtn.onclick = async () => {
+      const now = new Date();
+      state.calendarYear = now.getFullYear();
+      state.calendarMonthIndex = now.getMonth();
+      await renderDashboard();
+    };
+  }
   document.querySelectorAll(".cal-item").forEach((el) => {
     el.onclick = (e) => {
       e.stopPropagation();

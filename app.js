@@ -535,6 +535,9 @@ document.querySelectorAll(".tab-btn[data-tab]").forEach((btn) => {
     state.tab = btn.dataset.tab;
     state.detailId = null;
     render();
+    app.classList.remove("view-enter");
+    void app.offsetWidth; // 같은 애니메이션을 다시 재생하려면 리플로우가 필요
+    app.classList.add("view-enter");
   });
 });
 

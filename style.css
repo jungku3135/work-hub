@@ -1,39 +1,46 @@
 :root {
-  /* Material You (MD3) tokens — purple/lavender seed, Cloud Dancer neutral base */
-  --bg: #f0eee6;              /* Pantone Cloud Dancer — main background, never pure white */
-  --surface: #faf9f5;         /* Surface Container — cards */
-  --surface-alt: #e9e5da;     /* Surface Container High — headers, recessed areas */
-  --chip-bg: #eaddff;         /* Secondary/Primary Container — default chips */
-  --border: #dad5c9;          /* Outline Variant */
-  --text: #1c1b1f;            /* On Surface */
-  --muted: #6f6a63;           /* On Surface Variant */
-  --accent: #6750a4;          /* Primary */
-  --on-accent: #ffffff;       /* On Primary */
-  --accent-weak: #eadeff;     /* Primary Container */
-  --danger: #b3261e;          /* Error */
+  /* 디자인 토큰 — gettakecontrol.app 톤: 따뜻한 연회색 바탕 + 흰 면 + 검정 주 버튼 + 주황 포인트 */
+  --bg: #e9e9e7;
+  --surface: #fafaf9;
+  --surface-alt: #ebebe6;
+  --chip-bg: #e2e1da;
+  --border: #d9d9d6;
+  --text: #121211;
+  --muted: #666665;
+  --accent: #121211;          /* 주 버튼/활성 탭 = 검정 */
+  --on-accent: #ffffff;
+  --accent-weak: #eaeae7;
+  --brand: #ff7b4b;           /* 포인트(주황) — 로고/강조에만 아껴 씀 */
+  --brand-weak: #ffe6db;
+  --danger: #d93025;
 
   --radius-sm: 12px;
   --radius: 16px;
   --radius-lg: 24px;
-  --shadow: 0 1px 2px rgba(28, 27, 31, 0.06), 0 1px 3px rgba(28, 27, 31, 0.08);
-  --shadow-hover: 0 2px 6px rgba(28, 27, 31, 0.10), 0 4px 12px rgba(28, 27, 31, 0.10);
+  --radius-xl: 32px;
+  --radius-full: 999px;
+  --shadow: 0 1px 2px rgba(18, 18, 17, 0.05), 0 2px 8px rgba(18, 18, 17, 0.06);
+  --shadow-hover: 0 4px 12px rgba(18, 18, 17, 0.10), 0 8px 24px rgba(18, 18, 17, 0.08);
+  --shadow-float: 0 12px 32px rgba(18, 18, 17, 0.12);   /* 떠 있는 요소(헤더 바/메뉴/모달) */
   --ease: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);            /* 끝에서 부드럽게 감속 — 등장/전환 공통 */
 
-  --overlay: rgba(28, 24, 36, 0.5);
-  --toast-bg: #322f47;
+  --overlay: rgba(18, 18, 17, 0.45);
+  --toast-bg: #121211;
   --toast-text: #ffffff;
-  --row-hover: #f3f1ea;
-  --board-col-bg: #e9e5da;
+  --row-hover: #f2f2f0;
+  --board-col-bg: #e2e1da;
+  --glass-bg: rgba(250, 250, 249, 0.78);                 /* 블러 헤더 배경 */
 
-  --priority-high-bg: #f5dedb; --priority-high-text: #8c3b33;
-  --priority-mid-bg: #f3e8c9; --priority-mid-text: #8a6d2f;
+  --priority-high-bg: #fde3df; --priority-high-text: #a8322a;
+  --priority-mid-bg: #fdecc8; --priority-mid-text: #8a6417;
   --priority-low-bg: var(--surface-alt); --priority-low-text: var(--muted);
-  --cat-personal-bg: #f3dce6; --cat-personal-text: #8c3f63;
-  --cat-team-bg: #eadeff; --cat-team-text: #6750a4;
-  --status-done-bg: #dce8d9; --status-done-text: #3f6b3a;
-  --status-cancel-bg: #f5dedb; --status-cancel-text: #8c3b33;
+  --cat-personal-bg: #fde0d2; --cat-personal-text: #b4451b;
+  --cat-team-bg: #dfe6e3; --cat-team-text: #465a54;
+  --status-done-bg: #dcefdd; --status-done-text: #2f6b3a;
+  --status-cancel-bg: #fde3df; --status-cancel-text: #a8322a;
   --saturday-text: #3a5fc4;
-  --holiday-bg: #fbe4e2;
+  --holiday-bg: #fde8e5;
 
   /* 플립 시계 카드 — 라이트 테마에선 검은 패널+흰 숫자, 다크 테마에선 반대로 뒤집어서 항상 배경과 대비되게 함 */
   --flip-face-hi: #3a3a3f; --flip-face-lo: #1c1c20;
@@ -43,41 +50,47 @@
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg:#17151b; --surface:#211f26; --surface-alt:#37333f; --chip-bg:#4a4458; --border:#5c5766;
-    --text:#e6e1e5; --muted:#cac4d0; --accent:#d0bcff; --on-accent:#381e72; --accent-weak:#4f378b;
-    --danger:#f2b8b5; --shadow:0 1px 2px rgba(0,0,0,0.4),0 1px 3px rgba(0,0,0,0.5);
-    --shadow-hover:0 3px 8px rgba(0,0,0,0.5),0 6px 16px rgba(0,0,0,0.4);
-    --overlay:rgba(0,0,0,0.6); --toast-bg:#332f47; --toast-text:#f5f5f5; --row-hover:#26242c; --board-col-bg:#26242c;
-    --priority-high-bg:#4a2e2b; --priority-high-text:#e8b4ac;
+    --bg:#121211; --surface:#1c1c1b; --surface-alt:#2a2a28; --chip-bg:#353533; --border:#3f3f3d;
+    --text:#eaeae7; --muted:#a2a2a1; --accent:#f0f0ee; --on-accent:#121211; --accent-weak:#2f2f2d;
+    --brand:#ff8d63; --brand-weak:#4a2c20;
+    --danger:#ff8a80; --shadow:0 1px 2px rgba(0,0,0,0.4),0 2px 8px rgba(0,0,0,0.35);
+    --shadow-hover:0 4px 12px rgba(0,0,0,0.5),0 8px 24px rgba(0,0,0,0.4);
+    --shadow-float:0 12px 32px rgba(0,0,0,0.55);
+    --overlay:rgba(0,0,0,0.6); --toast-bg:#f0f0ee; --toast-text:#121211; --row-hover:#242423; --board-col-bg:#242423;
+    --glass-bg:rgba(28,28,27,0.78);
+    --priority-high-bg:#4a2b28; --priority-high-text:#f0b4ac;
     --priority-mid-bg:#473f26; --priority-mid-text:#e8d9a0;
-    --cat-personal-bg:#3d2a34; --cat-personal-text:#e3afc6;
-    --cat-team-bg:#392f52; --cat-team-text:#c9b6f0;
-    --status-done-bg:#2a3a28; --status-done-text:#a8cba0;
+    --cat-personal-bg:#4a2e22; --cat-personal-text:#ffb899;
+    --cat-team-bg:#2c3633; --cat-team-text:#a9c0b8;
+    --status-done-bg:#25382a; --status-done-text:#a8d3ae;
     --status-cancel-bg:#452226; --status-cancel-text:#fca5a5;
     --saturday-text: #a8bdf5;
     --holiday-bg: #3d2529;
     --flip-face-hi: #f5f4f0; --flip-face-lo: #e6e3da;
     --flip-face-hi2: #ece9e1; --flip-face-lo2: #dbd7cc;
-    --flip-text: #1c1b1f;
+    --flip-text: #121211;
   }
 }
 :root[data-theme="dark"] {
-  --bg:#17151b; --surface:#211f26; --surface-alt:#37333f; --chip-bg:#4a4458; --border:#5c5766;
-  --text:#e6e1e5; --muted:#cac4d0; --accent:#d0bcff; --on-accent:#381e72; --accent-weak:#4f378b;
-  --danger:#f2b8b5; --shadow:0 1px 2px rgba(0,0,0,0.4),0 1px 3px rgba(0,0,0,0.5);
-  --shadow-hover:0 3px 8px rgba(0,0,0,0.5),0 6px 16px rgba(0,0,0,0.4);
-  --overlay:rgba(0,0,0,0.6); --toast-bg:#332f47; --toast-text:#f5f5f5; --row-hover:#26242c; --board-col-bg:#26242c;
-  --priority-high-bg:#4a2e2b; --priority-high-text:#e8b4ac;
+  --bg:#121211; --surface:#1c1c1b; --surface-alt:#2a2a28; --chip-bg:#353533; --border:#3f3f3d;
+  --text:#eaeae7; --muted:#a2a2a1; --accent:#f0f0ee; --on-accent:#121211; --accent-weak:#2f2f2d;
+  --brand:#ff8d63; --brand-weak:#4a2c20;
+  --danger:#ff8a80; --shadow:0 1px 2px rgba(0,0,0,0.4),0 2px 8px rgba(0,0,0,0.35);
+  --shadow-hover:0 4px 12px rgba(0,0,0,0.5),0 8px 24px rgba(0,0,0,0.4);
+  --shadow-float:0 12px 32px rgba(0,0,0,0.55);
+  --overlay:rgba(0,0,0,0.6); --toast-bg:#f0f0ee; --toast-text:#121211; --row-hover:#242423; --board-col-bg:#242423;
+  --glass-bg:rgba(28,28,27,0.78);
+  --priority-high-bg:#4a2b28; --priority-high-text:#f0b4ac;
   --priority-mid-bg:#473f26; --priority-mid-text:#e8d9a0;
-  --cat-personal-bg:#3d2a34; --cat-personal-text:#e3afc6;
-  --cat-team-bg:#392f52; --cat-team-text:#c9b6f0;
-  --status-done-bg:#2a3a28; --status-done-text:#a8cba0;
+  --cat-personal-bg:#4a2e22; --cat-personal-text:#ffb899;
+  --cat-team-bg:#2c3633; --cat-team-text:#a9c0b8;
+  --status-done-bg:#25382a; --status-done-text:#a8d3ae;
   --status-cancel-bg:#452226; --status-cancel-text:#fca5a5;
   --saturday-text: #a8bdf5;
   --holiday-bg: #3d2529;
   --flip-face-hi: #f5f4f0; --flip-face-lo: #e6e3da;
   --flip-face-hi2: #ece9e1; --flip-face-lo2: #dbd7cc;
-  --flip-text: #1c1b1f;
+  --flip-text: #121211;
 }
 
 * { box-sizing: border-box; }
@@ -104,8 +117,15 @@ body {
 
 .muted { color: var(--muted); font-size: 0.85rem; }
 
+/* --- 공통 모션 (gettakecontrol.app 참고: 같은 감속 곡선, 14px 아래에서 올라오며 등장) --- */
+@keyframes menu-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes rise-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+/* 항목 여러 개가 70ms 간격으로 차례로 올라오게 하려면 요소에 style="--i:N" 을 준다 */
+.reveal { animation: rise-in 0.65s var(--ease-out) both; animation-delay: calc(var(--i, 0) * 70ms); }
+
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-delay: 0ms !important; transition-duration: 0.01ms !important; }
 }
 
 *:focus-visible {
@@ -114,39 +134,47 @@ body {
   border-radius: 4px;
 }
 
-/* --- topbar --- */
+/* --- topbar: 화면 위에 떠 있는 블러 알약 바 --- */
 .topbar {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1.25rem;
   flex-wrap: wrap;
-  padding: 0.75rem 1.25rem;
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  margin: 0.75rem auto 0.5rem;
+  width: min(calc(100% - 1.5rem), 1400px);
+  padding: 0.5rem 0.6rem 0.5rem 1.25rem;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-float);
   position: sticky;
-  top: 0;
+  top: 0.6rem;
   z-index: 10;
 }
-.topbar h1 { font-size: 1.1rem; font-weight: 500; margin: 0; white-space: nowrap; }
+.topbar h1 { font-size: 1.05rem; font-weight: 600; letter-spacing: -0.01em; margin: 0; white-space: nowrap; }
 
 .tabs { display: flex; gap: 0.25rem; overflow-x: auto; flex: 1; }
 .tab-btn {
   border: none; background: transparent; padding: 0.5rem 1rem;
   border-radius: 999px; cursor: pointer; font-size: 0.9rem; font-weight: 500; color: var(--muted);
-  white-space: nowrap; transition: background-color 200ms var(--ease), color 200ms var(--ease);
+  white-space: nowrap; transition: background-color 250ms var(--ease-out), color 250ms var(--ease-out), transform 150ms var(--ease-out);
 }
-.tab-btn:hover { background: var(--accent-weak); color: var(--accent); }
+.tab-btn:hover { background: var(--accent-weak); color: var(--text); }
+.tab-btn:active { transform: scale(0.96); }
 .tab-btn.active { background: var(--accent); color: var(--on-accent); }
 
 /* 유틸리티는 탭 전환 대신, 지금 보고 있는 화면은 그대로 둔 채 상단에서 드롭다운으로 바로 링크만 고르게 함 */
 .nav-dropdown { position: relative; display: inline-flex; }
-.nav-dropdown .tab-btn.dropdown-open { background: var(--accent-weak); color: var(--accent); }
+.nav-dropdown .tab-btn.dropdown-open { background: var(--accent-weak); color: var(--text); }
 .nav-dropdown-menu {
   position: fixed; z-index: 130; background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-lg); box-shadow: 0 12px 40px rgba(28, 27, 31, 0.25);
-  padding: 0.8rem; width: min(90vw, 380px); max-height: 70vh; overflow-y: auto;
+  border-radius: var(--radius-xl); box-shadow: var(--shadow-float);
+  padding: 1rem; width: min(90vw, 380px); max-height: 70vh; overflow-y: auto;
 }
 .nav-dropdown-menu.hidden { display: none; }
+.nav-dropdown-menu:not(.hidden) { animation: menu-in 0.2s var(--ease-out) both; }
 
 .sync-box { display: flex; align-items: center; gap: 0.6rem; margin-left: auto; }
 #theme-toggle-btn { font-size: 1rem; line-height: 1; padding: 0.45rem 0.7rem; }
@@ -177,6 +205,8 @@ body {
 
 /* --- layout --- */
 main#app { padding: 1.25rem; max-width: 1300px; margin: 0 auto; }
+/* 탭을 옮길 때만 화면이 부드럽게 올라오며 나타남 (app.js가 .view-enter를 붙였다 뗌) */
+main#app.view-enter { animation: rise-in 0.5s var(--ease-out) both; }
 .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; flex-wrap: wrap; gap: 0.5rem; }
 .section-header h2 { margin: 0; font-size: 1.15rem; font-weight: 500; }
 
@@ -352,7 +382,7 @@ main#app { padding: 1.25rem; max-width: 1300px; margin: 0 auto; }
   position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
   width: min(96vw, 1760px); height: min(94vh, 1150px);
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
-  box-shadow: 0 12px 40px rgba(28, 27, 31, 0.35);
+  box-shadow: var(--shadow-float);
   z-index: 120; display: flex; flex-direction: column; overflow: hidden;
 }
 .util-preview-panel.hidden, .util-preview-panel.minimized { display: none; }
@@ -451,9 +481,11 @@ select, option {
 .modal-root { position: fixed; inset: 0; background: var(--overlay); display: flex; align-items: flex-start; justify-content: center; padding: 4vh 1rem; overflow-y: auto; z-index: 100; }
 #auth-modal-root { z-index: 110; }
 .modal-root.hidden { display: none; }
+.modal-root:not(.hidden) { animation: fade-in 0.25s var(--ease-out) both; }
+.modal-root:not(.hidden) .modal { animation: rise-in 0.45s var(--ease-out) both; }
 .modal {
-  background: var(--surface); border-radius: var(--radius-lg); padding: 1.6rem; width: 100%; max-width: 520px;
-  box-shadow: 0 12px 40px rgba(28, 27, 31, 0.25); transition: max-width 150ms var(--ease);
+  background: var(--surface); border-radius: var(--radius-xl); padding: 1.8rem; width: 100%; max-width: 520px;
+  box-shadow: var(--shadow-float); transition: max-width 150ms var(--ease);
 }
 .modal.modal-meeting { max-width: 900px; }
 .modal.modal-task { max-width: 860px; }

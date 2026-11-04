@@ -232,8 +232,11 @@ body {
   opacity: 1;
   transition: transform 0.45s var(--ease-out), width 0.45s var(--ease-out), height 0.45s var(--ease-out), opacity 0.2s;
 }
-/* 대시보드는 읽는 화면이라 드래그로 글자가 선택되는 게 거슬림 → 이 화면에서만 선택 방지 (입력창이 있는 다른 탭/모달은 그대로) */
-main#app[data-view="dashboard"] { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+/* 앱처럼 보이게: 화면 글자는 드래그/전체선택(Ctrl+A)으로 파랗게 선택되지 않게 하고, 모바일에서 누를 때 뜨는 기본 파란 하이라이트도 끈다.
+   단, 복사할 일이 있는 곳(입력창·모달 상세·업무일지)은 그대로 선택 가능 */
+body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; }
+input, textarea, select, [contenteditable], .modal, .report-sheet, .daily-sheet, .load-error-detail code { -webkit-user-select: text; user-select: text; }
+a, img { -webkit-user-drag: none; }
 
 /* 유틸리티는 탭 전환 대신, 지금 보고 있는 화면은 그대로 둔 채 상단에서 드롭다운으로 바로 링크만 고르게 함 */
 .nav-dropdown { position: relative; display: inline-flex; }

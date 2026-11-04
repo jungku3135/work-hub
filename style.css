@@ -142,7 +142,7 @@ body {
   gap: 1.25rem;
   flex-wrap: wrap;
   margin: 0.75rem auto 0.5rem;
-  width: min(calc(100% - 1.5rem), 1400px);
+  width: min(calc(100% - 1.5rem), 1260px); /* main#app 본문 폭(1300 - 좌우 패딩 40)과 가장자리를 맞춤 */
   padding: 0.5rem 0.6rem 0.5rem 1.25rem;
   border: 1px solid var(--border);
   border-radius: var(--radius-full);
@@ -717,7 +717,12 @@ select, option {
 /* --- responsive --- */
 @media (max-width: 720px) {
   .board { grid-template-columns: 1fr; }
-  .topbar { gap: 0.6rem; }
+  /* 좁은 화면: 알약(999px)이 3줄로 접히면 찌그러지므로 모서리를 줄이고, 탭은 한 줄 가로 스크롤로 */
+  .topbar { gap: 0.5rem; border-radius: var(--radius-xl); padding: 0.6rem 0.8rem; }
+  .topbar h1 { flex: 1; }
+  .tabs { flex: 1 1 100%; order: 3; }
+  .sync-box { margin-left: 0; }
+  #last-sync-label { display: none; }
   table.data-table thead { display: none; }
   table.data-table tr { display: block; border-bottom: 1px solid var(--border); padding: 0.5rem 0; }
   table.data-table td { display: flex; justify-content: space-between; border: none; padding: 0.25rem 0.75rem; white-space: normal; text-align: right; }

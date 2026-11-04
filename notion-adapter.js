@@ -229,26 +229,65 @@
   // 동시에(Promise.all) 요청하는데, 그냥 캐시만 있으면 "아직 아무것도 없음"인 이 순간엔
   // 서로 캐시를 못 보고 Notion에 똑같은 걸 두 번 따로 물어보게 된다. 진행 중인 요청 자체를
   // 캐시해두면(single-flight) 나중에 온 쪽은 새로 요청하지 않고 먼저 간 요청을 같이 기다린다.
+  // 화면이 처음 뜰 때 Notion 조회(태스크는 100건씩 3번 순차)가 2초 이상 걸리는 게 체감 지연의 대부분이라,
+  // 직전에 받아 둔 목록을 localStorage에 스냅샷으로 저장해 두었다가 페이지를 열면 그걸 먼저 보여주고
+  // (즉시 표시) 뒤에서 진짜 데이터를 받아 교체한다. 데이터가 달라졌으면 "wh-data-refreshed" 이벤트로 app.js에 알린다.
+  // 스냅샷은 페이지를 연 직후 한 번만 쓰고, 이후(쓰기 뒤 재조회, 수동 동기화 등)엔 항상 진짜 데이터를 기다린다.
+  const SNAP_KEY = "wh-snapshot-v1";
+  const SNAP_TTL_MS = 7 * 24 * 3600 * 1000; // 일주일 넘은 스냅샷은 버림
+  let snapshot = (() => {
+    try {
+      const s = JSON.parse(localStorage.getItem(SNAP_KEY) || "null");
+      return s && Date.now() - s.savedAt < SNAP_TTL_MS ? s : null;
+    } catch {
+      return null;
+    }
+  })();
+  const snapshotServed = {}; // key -> true (이번 페이지 로드에서 이미 스냅샷을 내보냄)
+  function saveSnapshotPart(key, data) {
+    snapshot = { ...(snapshot || {}), [key]: data, savedAt: Date.now(), syncTime: lastSyncTime ?? snapshot?.syncTime };
+    try {
+      localStorage.setItem(SNAP_KEY, JSON.stringify(snapshot));
+    } catch {
+      // 용량 초과 등 — 스냅샷은 부가 기능이라 조용히 포기
+    }
+  }
+
   async function cachedFetch(key, fetcher) {
     const entry = listCache[key];
+    if (entry?.stale) return entry.stale; // 진짜 데이터를 받아오는 동안엔 스냅샷을 계속 돌려줌
     if (entry?.promise) return entry.promise;
     if (entry && Date.now() - entry.time < LIST_CACHE_TTL_MS) return entry.data;
+    const stale = !snapshotServed[key] && snapshot?.[key];
     const promise = fetcher()
       .then((data) => {
         listCache[key] = { data, time: Date.now() };
+        saveSnapshotPart(key, data);
+        if (stale) {
+          const changed = JSON.stringify(stale) !== JSON.stringify(data);
+          // 내용이 같아도 태스크는 "마지막 동기화 시각"이 새로 바뀌었으니 라벨은 갱신하게 알림
+          if (changed) window.dispatchEvent(new Event("wh-data-refreshed"));
+          else if (key === "tasks") window.dispatchEvent(new Event("wh-sync-time"));
+        }
         return data;
       })
       .catch((err) => {
-        listCache[key] = null; // 실패하면 캐시에 안 남겨서 다음 시도 때 다시 받아오게 함
-        throw err;
+        listCache[key] = stale ? { data: stale, time: 0 } : null; // 실패하면 다음 시도 때 다시 받아오게 함 (스냅샷이 있으면 그걸로 계속 표시)
+        if (!stale) throw err;
+        return stale;
       });
+    if (stale) {
+      snapshotServed[key] = true;
+      listCache[key] = { promise, stale };
+      return stale;
+    }
     listCache[key] = { promise };
     return promise;
   }
 
   // "마지막 동기화" = 이 브라우저가 Notion에서 태스크 목록을 실제로 마지막으로 받아온 시각
   // (첫 로딩, 수동 동기화, 자동 새로고침, 저장 후 재조회 모두 포함)
-  let lastSyncTime = null;
+  let lastSyncTime = null; // 스냅샷으로 먼저 그린 동안은 snapshot.syncTime을 대신 보여줌
 
   async function fetchAllTasks() {
     return cachedFetch("tasks", async () => {
@@ -588,11 +627,18 @@
   // ---------- 사람 (Notion 워크스페이스 멤버) ----------
 
   let peopleCache = null;
+  let peopleFetching = null;
   async function listPeople() {
     if (peopleCache) return peopleCache;
-    const users = await NC.listUsers();
-    peopleCache = users.filter((u) => u.type === "person").map((u) => ({ id: u.id, name: displayName(u.name ?? "(이름 없음)") }));
-    return peopleCache;
+    if (peopleFetching) return snapshot?.people && !peopleCache ? snapshot.people : peopleFetching;
+    const stale = snapshot?.people;
+    peopleFetching = NC.listUsers().then((users) => {
+      peopleCache = users.filter((u) => u.type === "person").map((u) => ({ id: u.id, name: displayName(u.name ?? "(이름 없음)") }));
+      saveSnapshotPart("people", peopleCache);
+      if (stale && JSON.stringify(stale) !== JSON.stringify(peopleCache)) window.dispatchEvent(new Event("wh-data-refreshed"));
+      return peopleCache;
+    });
+    return stale ?? peopleFetching;
   }
 
   // ---------- 커스텀 인물(Notion 계정 없는 담당자) ----------
@@ -644,7 +690,7 @@
       // 첫 로딩 때는 태스크 조회와 동시에 불리므로, 진행 중인 조회가 끝난 뒤의 시각을 돌려준다
       // (single-flight 캐시라 추가 요청은 생기지 않는다)
       await fetchAllTasks().catch(() => {});
-      return { lastSyncTime };
+      return { lastSyncTime: lastSyncTime ?? snapshot?.syncTime ?? null };
     }
     if (method === "POST") {
       invalidateListCache(); // "동기화"는 10초 캐시와 무관하게 항상 Notion에서 새로 받아온다
@@ -656,16 +702,34 @@
 
   // ---------- 공휴일 / 날씨 (Cloudflare Worker가 공공데이터포털·기상청 키를 대신 들고 프록시) ----------
 
+  // 공휴일은 거의 안 바뀌는데 Worker가 월별로 12번 공공데이터포털을 호출해서 ~1초가 걸린다 →
+  // 받은 결과를 localStorage에 30일 저장해 두고, 있으면 네트워크 없이 바로 쓴다 (빈 응답은 저장하지 않음).
+  const HOLIDAY_TTL_MS = 30 * 24 * 3600 * 1000;
   const holidayCache = new Map(); // year -> Promise<holidays[]> (single-flight — 값 자체를 캐싱)
   function fetchHolidays(year) {
     const y = Number(year) || new Date().getFullYear();
     if (!holidayCache.has(y)) {
-      holidayCache.set(
-        y,
-        fetch(`${PROXY_ROOT}/holidays?year=${y}`)
-          .then((res) => (res.ok ? res.json() : []))
-          .catch(() => [])
-      );
+      const storeKey = `wh-holidays-${y}`;
+      let stored = null;
+      try {
+        stored = JSON.parse(localStorage.getItem(storeKey) || "null");
+      } catch {
+        // 깨진 저장값은 무시하고 새로 받는다
+      }
+      if (stored?.list?.length && Date.now() - stored.t < HOLIDAY_TTL_MS) {
+        holidayCache.set(y, Promise.resolve(stored.list));
+      } else {
+        holidayCache.set(
+          y,
+          fetch(`${PROXY_ROOT}/holidays?year=${y}`)
+            .then((res) => (res.ok ? res.json() : []))
+            .then((list) => {
+              if (list.length) localStorage.setItem(storeKey, JSON.stringify({ t: Date.now(), list }));
+              return list;
+            })
+            .catch(() => [])
+        );
+      }
     }
     return holidayCache.get(y);
   }

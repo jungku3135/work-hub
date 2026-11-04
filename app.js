@@ -315,6 +315,28 @@ async function autoSyncIfIdle() {
   }
 }
 
+// 스냅샷으로 먼저 그린 뒤 진짜 데이터가 도착해 내용이 달라졌을 때(notion-adapter.js가 알림) 조용히 다시 그린다.
+// 폼/모달을 열어 작성 중이면 입력을 지우지 않도록 건너뛴다 (다음 렌더 때 최신 데이터가 반영됨).
+window.addEventListener("wh-data-refreshed", async () => {
+  if (!modalRoot.classList.contains("hidden") || !authModalRoot.classList.contains("hidden")) return;
+  try {
+    await loadAll();
+    if (state.filters.category || state.filters.projectId || state.filters.assigneeId) await reloadTasks();
+    if (modalRoot.classList.contains("hidden")) render();
+  } catch {
+    // 조용히 실패 — 화면은 스냅샷 그대로 유지
+  }
+});
+
+window.addEventListener("wh-sync-time", async () => {
+  try {
+    state.lastSyncTime = (await api("GET", "api/sync")).lastSyncTime;
+    updateSyncLabel();
+  } catch {
+    // 라벨만 못 바꾼 것 — 무시
+  }
+});
+
 function startAutoSync() {
   setInterval(autoSyncIfIdle, AUTO_SYNC_CHECK_MS);
   document.addEventListener("visibilitychange", autoSyncIfIdle);

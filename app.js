@@ -933,9 +933,9 @@ function calItemChipHtml(t) {
 function calBarHtml(bar, barTop, cellInset) {
   const t = bar.task;
   const span = bar.endCol - bar.startCol + 1;
-  const left = `calc(${bar.startCol} * ((100% - 24px) / 7 + 4px) + ${cellInset}px)`;
-  const width = `calc(${span} * (100% - 24px) / 7 + ${Math.max(span - 1, 0)} * 4px - ${cellInset * 2}px)`;
-  const style = `left:${left}; width:${width}; top:${barTop}px;`;
+  const left = `calc(${bar.startCol} * ((100% - 1.5rem) / 7 + 0.25rem) + ${cellInset / 16}rem)`;
+  const width = `calc(${span} * (100% - 1.5rem) / 7 + ${Math.max(span - 1, 0)} * 0.25rem - ${(cellInset * 2) / 16}rem)`;
+  const style = `left:${left}; width:${width}; top:${barTop / 16}rem;`;
   return `<div class="cal-item cal-bar ${calItemModifierClasses(t)}" data-task-id="${t.id}" title="${calItemTitle(t)}" style="${style}">${calItemLabel(t)}</div>`;
 }
 
@@ -1083,7 +1083,7 @@ function calendarHtml() {
                 <span class="cal-day-num">${day}</span>
                 ${holidayName ? `<span class="cal-holiday-name" title="${escapeHtml(holidayName)}">${escapeHtml(holidayName)}</span>` : ""}
               </div>
-              <div class="cal-items" style="${itemsMarginTop ? `margin-top:${itemsMarginTop}px;` : ""}">
+              <div class="cal-items" style="${itemsMarginTop ? `margin-top:${itemsMarginTop / 16}rem;` : ""}">
                 ${items.slice(0, showCount).map((t) => calItemChipHtml(t)).join("")}
                 ${hiddenCount > 0 && availableRows > 0 ? `<div class="cal-more">+${hiddenCount}</div>` : ""}
               </div>
@@ -1382,7 +1382,7 @@ function openProjectListModal(title, projects) {
                 (p) => `
         <div class="mini-card stat-list-item" data-project-id="${p.id}">
           <div class="title">${escapeHtml(p.name)}</div>
-          <div class="meta" style="margin-top:0.4rem; display:flex; gap:0.3rem; flex-wrap:wrap;">
+          <div class="meta" style="margin-top:0.4rem; display:flex; gap:0.3rem; flex-wrap:wrap; align-items:center;">
             ${tag(p.status, "status")} ${tag(p.category, "cat")} ${tag(p.priority, "priority")}
             ${p.dueDate ? `<span class="tag">~${p.dueDate}</span>` : ""}
           </div>
@@ -2223,7 +2223,7 @@ function openUtilDropdown() {
   const btn = document.getElementById("util-dropdown-btn");
   const menu = document.getElementById("util-dropdown-menu");
   const rect = btn.getBoundingClientRect();
-  // html { zoom: 0.9 } 때문에 getBoundingClientRect(화면 px)와 fixed 요소의 top/right(CSS px)가 배율만큼 어긋난다 → 배율로 나눠 맞춘다
+  // html에 zoom이 걸려 있으면 getBoundingClientRect(화면 px)와 fixed 요소의 top/right(CSS px)가 어긋나므로 배율로 나눈다 (지금은 zoom 없음 → 1)
   const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
   menu.style.right = `${Math.max(8, (window.innerWidth - rect.right) / zoom)}px`;
   menu.classList.remove("hidden");

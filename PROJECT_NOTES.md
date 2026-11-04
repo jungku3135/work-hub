@@ -89,6 +89,11 @@ Notion DB(태스크/프로젝트/회의록)를 **Cloudflare Worker 프록시**�
 - 모션: 화면(탭/상세)이 바뀔 때만 `playViewEnter()`(app.js)가 카드/패널에 `.reveal`(14px 상승, 70ms 간격)을 붙임. 모달/드롭다운/탭 전환/호버 모두 같은 감속 곡선. `prefers-reduced-motion`이면 꺼짐.
 - 상단 바는 `backdrop-filter: blur(12px)` 알약. 표·달력은 밀도 유지(모서리/호버만 변경). 업무일지 출력물(xlsx/이미지/PDF)은 디자인과 무관.
 
+## 9-4. 배율 (zoom 제거)
+- 예전 `html { zoom: 0.9 }`는 제거. 대신 `html { font-size: 90% }`(1rem = 14.4px)이고 style.css의 px 값은 전부 rem(=px/16)으로 변환(1px 테두리·미디어쿼리 제외). 같은 화면 크기를 유지하면서 zoom 부작용(확장 프로그램 오버레이 드래그 한계, getBoundingClientRect 어긋남)을 없앰.
+- 새 CSS를 쓸 땐 **px 대신 rem**(예: 15px → 0.9375rem)을 써야 화면 비율이 유지됨. 달력 막대 같은 JS 계산 값도 `px/16 rem`으로 출력.
+- 인쇄(`@media print`)에서는 루트 글자 크기를 100%로 되돌려 예전과 같은 인쇄 크기를 유지.
+
 ## 9-3. 로딩 최적화 (스냅샷)
 - 병목: 태스크가 ~250건이라 Notion 100건씩 3번 순차 조회(~2초) + 공휴일 12회 호출(~1초). 첫 방문 대시보드 표시 ~2.0~2.5초.
 - `notion-adapter.js`: 직전에 받은 태스크/프로젝트/회의록/사람 목록을 `localStorage["wh-snapshot-v1"]`(7일)에 저장 → 다음 방문 때 즉시 그리고(재방문 ~0.2초), 뒤에서 진짜 데이터를 받아 달라졌으면 `wh-data-refreshed` 이벤트 → `app.js`가 조용히 다시 그림(모달/폼이 열려 있으면 건너뜀). 내용이 같으면 `wh-sync-time`으로 동기화 시각 라벨만 갱신.

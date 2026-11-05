@@ -2689,7 +2689,7 @@ async function saveReportAsImage() {
     if (daily) {
       const canvas = await withOffscreenHtml(dailySheetHtml({ forExport: true }), (el) => captureElementToCanvas(el, 2, getLightThemeVars()));
       const link = document.createElement("a");
-      link.download = `${state.reportAssignee || state.reportTeamName}_일일업무계획_${state.reportDate}.png`;
+      link.download = `work-hub ${state.reportAssignee || state.reportTeamName} ${state.reportDate.slice(5)}.png`;
       link.href = canvas.toDataURL("image/png");
       link.click();
       return;
@@ -3160,7 +3160,7 @@ async function saveDailyReportAsXlsx() {
     await Promise.all([state.reportDate, addDaysISO(state.reportDate, -14)].map((d) => ensureHolidays(Number(d.slice(0, 4)))));
     const { blob, overflow } = await buildDailyReportXlsx();
     const link = document.createElement("a");
-    link.download = `일일 업무 계획서(${state.reportAssignee}).xlsx`;
+    link.download = `work-hub ${state.reportAssignee} ${state.reportDate.slice(5)}.xlsx`;
     link.href = URL.createObjectURL(blob);
     link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 10000);
